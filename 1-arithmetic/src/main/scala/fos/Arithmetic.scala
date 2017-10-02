@@ -57,8 +57,19 @@ object Arithmetic extends StandardTokenParsers {
    *  If reduction is not possible NoReductionPossible exception
    *  with corresponding irreducible term should be thrown.
    */
-  def reduce(t: Term): Term =
-    ???
+  def reduce(t: Term): Term = t match {
+    case If(True, t1, t2) => t1
+    case If(False, t1, t2) => t2
+    case IsZero(Zero) => True
+    case IsZero(Succ(_)) => False
+    case Pred(Zero) => Zero
+    case Pred(Succ(x)) => x
+    case If(t1, t2, t3) => If(reduce(t1), t2, t3)
+    case IsZero(t) => IsZero(reduce(t))
+    case Pred(t) => Pred(reduce(t))
+    case Succ(t) => Succ(reduce(t))
+    case _ => throw new NoReductionPossible(t)
+  }
 
   case class TermIsStuck(t: Term) extends Exception(t.toString)
 
