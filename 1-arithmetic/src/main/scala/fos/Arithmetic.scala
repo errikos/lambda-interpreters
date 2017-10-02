@@ -77,8 +77,17 @@ object Arithmetic extends StandardTokenParsers {
    *  If evaluation is not possible TermIsStuck exception with
    *  corresponding inner irreducible term should be thrown.
    */
-  def eval(t: Term): Term =
-    ???
+  def eval(t: Term): Term = t match {
+    case True | False | Zero => t
+    case If(t1, t2, t3) if eval(t1) == True => eval(t2)
+    case If(t1, t2, t3) if eval(t1) == False => eval(t3)
+    case Succ(t1) => Succ(eval(t1))
+    case Pred(t1) if eval(t1) == Zero => Zero
+    case Pred(t1) => eval(t1) match { case Succ(nv1) => nv1 }
+    case IsZero(t1) if eval(t1) == Zero => True
+    case IsZero(t1) => eval(t1) match {case Succ(nv1) => False }
+    case _ => throw new TermIsStuck(t)
+  }
 
   def main(args: Array[String]): Unit = {
     val stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
