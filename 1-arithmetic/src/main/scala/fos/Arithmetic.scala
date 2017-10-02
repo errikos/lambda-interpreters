@@ -15,13 +15,28 @@ object Arithmetic extends StandardTokenParsers {
   /** term ::= 'true'
              | 'false'
              | 'if' term 'then' term 'else' term
-             | '0'
+             | '0' | '1' | '2' | ...
              | 'succ' term
              | 'pred' term
              | 'iszero' term
    */
-  def term: Parser[Term] =
-      ???
+  def term: Parser[Term] = (
+      "true" ^^^ True
+    | "false" ^^^ False
+    | "if"~term~"then"~term~"else"~term ^^ {
+        case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2)
+      }
+    | numericLit ^^ {
+        case value => {
+          var x:Term = Zero
+          for (i <- 1 to value.toInt) { x = Succ(x) }
+          x
+        }
+      }
+    | "succ"~term ^^ { case "succ"~t => Succ(t) }
+    | "pred"~term ^^ { case "pred"~t => Pred(t) }
+    | "iszero"~term ^^ {case "iszero"~t => IsZero(t) }
+  )
 
   case class NoReductionPossible(t: Term) extends Exception(t.toString)
 
