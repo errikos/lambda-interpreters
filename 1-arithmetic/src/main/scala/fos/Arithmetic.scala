@@ -35,7 +35,7 @@ object Arithmetic extends StandardTokenParsers {
       }
     | "succ"~term ^^ { case "succ"~t => Succ(t) }
     | "pred"~term ^^ { case "pred"~t => Pred(t) }
-    | "iszero"~term ^^ {case "iszero"~t => IsZero(t) }
+    | "iszero"~term ^^ { case "iszero"~t => IsZero(t) }
   )
 
   case class NoReductionPossible(t: Term) extends Exception(t.toString)
@@ -53,6 +53,12 @@ object Arithmetic extends StandardTokenParsers {
         }
       }
 
+  def nv(t: Term): Boolean = t match {
+    case Zero => true
+    case Succ(x) if nv(x) => true
+    case _ => false
+  }
+
   /** Perform one step of reduction, when possible.
    *  If reduction is not possible NoReductionPossible exception
    *  with corresponding irreducible term should be thrown.
@@ -61,9 +67,9 @@ object Arithmetic extends StandardTokenParsers {
     case If(True, t1, t2) => t1
     case If(False, t1, t2) => t2
     case IsZero(Zero) => True
-    case IsZero(Succ(_)) => False
+    case IsZero(Succ(x)) if nv(x) => False
     case Pred(Zero) => Zero
-    case Pred(Succ(x)) => x
+    case Pred(Succ(x)) if nv(x) => x
     case If(t1, t2, t3) => If(reduce(t1), t2, t3)
     case IsZero(t) => IsZero(reduce(t))
     case Pred(t) => Pred(reduce(t))
@@ -79,6 +85,7 @@ object Arithmetic extends StandardTokenParsers {
    */
   def eval(t: Term): Term = t match {
     case True | False | Zero => t
+    case Succ(x) if nv(x) => t
     case If(t1, t2, t3) if eval(t1) == True => eval(t2)
     case If(t1, t2, t3) if eval(t1) == False => eval(t3)
     case Succ(t1) => Succ(eval(t1))
