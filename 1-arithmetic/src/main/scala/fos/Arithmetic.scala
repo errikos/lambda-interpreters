@@ -53,6 +53,7 @@ object Arithmetic extends StandardTokenParsers {
         }
       }
 
+  /** Returns whether t is a numeric value, as defined by the NB grammar. */
   def nv(t: Term): Boolean = t match {
     case Zero => true
     case Succ(x) if nv(x) => true
@@ -84,15 +85,21 @@ object Arithmetic extends StandardTokenParsers {
    *  corresponding inner irreducible term should be thrown.
    */
   def eval(t: Term): Term = t match {
-    case True | False | Zero => t
-    case Succ(x) if nv(x) => t
-    case If(t1, t2, t3) if eval(t1) == True => eval(t2)
-    case If(t1, t2, t3) if eval(t1) == False => eval(t3)
-    case Succ(t1) => Succ(eval(t1))
-    case Pred(t1) if eval(t1) == Zero => Zero
-    case Pred(t1) => eval(t1) match { case Succ(nv1) => nv1 }
-    case IsZero(t1) if eval(t1) == Zero => True
-    case IsZero(t1) => eval(t1) match {case Succ(nv1) => False }
+    case True | False | Zero => t  // B-VALUE
+    case Succ(x) if nv(x) => t     // B-VALUE
+    case If(t1, t2, t3) if eval(t1) == True => eval(t2)   // B-IFTRUE
+    case If(t1, t2, t3) if eval(t1) == False => eval(t3)  // B-IFFALSE
+    case Succ(t1) if nv(eval(t1)) => Succ(eval(t1))  // B-SUCC
+    case Pred(t1) if eval(t1) == Zero => Zero  // B-PREDZERO
+    case Pred(t1) => eval(t1) match {  // B-PREDSUCC
+      case Succ(nv1) if nv(nv1) => nv1
+      case _ => throw new TermIsStuck(t)
+    }
+    case IsZero(t1) if eval(t1) == Zero => True  // B-ISZEROZERO
+    case IsZero(t1) => eval(t1) match {  // B-ISZEROSUCC
+      case Succ(nv1) if nv(nv1) => False
+      case _ => throw new TermIsStuck(t)
+    }
     case _ => throw new TermIsStuck(t)
   }
 
