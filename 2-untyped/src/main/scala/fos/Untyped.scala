@@ -26,6 +26,16 @@ object Untyped extends StandardTokenParsers {
     | "("~>term<~")"
   )
 
+  /** Return the free variables in t.
+   *
+   *  @param t the given term.
+   */
+  def fv(t: Term): Set[String] = t match {
+    case Var(v) => Set(v)
+    case Abs(v, t) => fv(t) - v
+    case App(t1, t2) => fv(t1) ++ fv(t2)
+  }
+
   /** <p>
    *    Alpha conversion: term <code>t</code> should be a lambda abstraction
    *    <code>\x. t</code>.
@@ -38,8 +48,10 @@ object Untyped extends StandardTokenParsers {
    *  @param t the given lambda abstraction.
    *  @return  the transformed term with bound variables renamed.
    */
-  def alpha(t: Term): Term =
-    t
+  def alpha(t: Term): Term = t match {
+    case Abs(v, t) => t  // TODO
+    case _ => null
+  }
 
   /** Straight forward substitution method
    *  (see definition 5.3.5 in TAPL book).
