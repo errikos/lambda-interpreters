@@ -16,8 +16,15 @@ object Untyped extends StandardTokenParsers {
           | t t
           | '(' t ')'
    */
-  def term: Parser[Term] =
-    ???
+  def term: Parser[Term] = (
+      chainl1(term2, success(App(_: Term, _: Term)))
+  )
+
+  def term2: Parser[Term] = (
+      ident ^^^ Var(ident.toString())
+    | "\\"~ident~"."~term ^^ { case "\\"~ident~"."~t => Abs(ident.toString(), t) }
+    | "("~>term<~")"
+  )
 
   /** <p>
    *    Alpha conversion: term <code>t</code> should be a lambda abstraction
@@ -32,7 +39,7 @@ object Untyped extends StandardTokenParsers {
    *  @return  the transformed term with bound variables renamed.
    */
   def alpha(t: Term): Term =
-    ???
+    t
 
   /** Straight forward substitution method
    *  (see definition 5.3.5 in TAPL book).
@@ -44,7 +51,7 @@ object Untyped extends StandardTokenParsers {
    *  @return  ...
    */
   def subst(t: Term, x: String, s: Term): Term =
-    ???
+    t
 
   /** Term 't' does not match any reduction rule. */
   case class NoReductionPossible(t: Term) extends Exception(t.toString)
@@ -55,11 +62,11 @@ object Untyped extends StandardTokenParsers {
    *  @return  the reduced term
    */
   def reduceNormalOrder(t: Term): Term =
-    ???
+    t
 
   /** Call by value reducer. */
   def reduceCallByValue(t: Term): Term =
-    ???
+    t
 
   /** Returns a stream of terms, each being one step of reduction.
    *
@@ -79,6 +86,8 @@ object Untyped extends StandardTokenParsers {
   def main(args: Array[String]): Unit = {
     val stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
     val tokens = new lexical.Scanner(stdin.readLine())
+    println(phrase(term)(tokens))
+    return
     phrase(term)(tokens) match {
       case Success(trees, _) =>
         println("normal order: ")
