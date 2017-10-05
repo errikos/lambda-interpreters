@@ -98,8 +98,6 @@ object Untyped extends StandardTokenParsers {
   def main(args: Array[String]): Unit = {
     val stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
     val tokens = new lexical.Scanner(stdin.readLine())
-    println(phrase(term)(tokens))
-    return
     phrase(term)(tokens) match {
       case Success(trees, _) =>
         println("normal order: ")
