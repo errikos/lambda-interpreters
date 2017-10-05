@@ -21,8 +21,8 @@ object Untyped extends StandardTokenParsers {
   )
 
   def term2: Parser[Term] = (
-      ident ^^^ Var(ident.toString())
-    | "\\"~ident~"."~term ^^ { case "\\"~ident~"."~t => Abs(ident.toString(), t) }
+      ident ^^ { case v => Var(v) }
+    | "\\"~ident~"."~term ^^ { case "\\"~v~"."~t => Abs(v, t) }
     | "("~>term<~")"
   )
 
