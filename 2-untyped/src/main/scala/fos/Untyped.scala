@@ -79,12 +79,19 @@ object Untyped extends StandardTokenParsers {
    *  @param t the initial term
    *  @return  the reduced term
    */
-  def reduceNormalOrder(t: Term): Term =
-    t
+  def reduceNormalOrder(t: Term): Term = t match {
+    case App(Abs(v, t1), t2) => subst(t1, v, t2)
+    case App(t1, t2) => try { App(reduceNormalOrder(t1), t2) } catch {
+      case NoReductionPossible(t1) => App(t1, reduceNormalOrder(t2))
+    }
+    case Abs(v, t) => Abs(v, reduceNormalOrder(t))
+    case _ => throw new NoReductionPossible(t)
+  }
 
   /** Call by value reducer. */
-  def reduceCallByValue(t: Term): Term =
-    t
+  def reduceCallByValue(t: Term): Term = t match {
+    case _ => throw new NoReductionPossible(t)
+  }
 
   /** Returns a stream of terms, each being one step of reduction.
    *
