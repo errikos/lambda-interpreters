@@ -60,10 +60,15 @@ object Untyped extends StandardTokenParsers {
    *  @param t the term in which we perform substitution
    *  @param x the variable name
    *  @param s the term we replace x with
-   *  @return  ...
+   *  @return  the substituted term
    */
-  def subst(t: Term, x: String, s: Term): Term =
-    t
+  def subst(t: Term, x: String, s: Term): Term = t match {
+    case Var(v) if v == x => s
+    case Var(v) if v != x => t
+    case Abs(v, t) if v == x => t
+    case Abs(v, t) if v != x && !fv(s).contains(v) => Abs(v, subst(t, x, s))
+    case App(t1, t2) => App(subst(t1, x, s), subst(t2, x, s))
+  }
 
   /** Term 't' does not match any reduction rule. */
   case class NoReductionPossible(t: Term) extends Exception(t.toString)
