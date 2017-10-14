@@ -81,7 +81,10 @@ object Untyped extends StandardTokenParsers {
     case Var(v) if v != x => t
     case Abs(v, t) if v == x => t
     case Abs(v, t) if v != x && !fv(s).contains(v) => Abs(v, subst(t, x, s))
-    // TODO: case where an α-reduction is needed.
+    case r @ Abs(v, t) if v != x && fv(s).contains(v) => {
+      // α-reduction is needed
+      alpha(r) match { case Abs(f, t) => Abs(f, subst(t, x, s)) }
+    }
     case App(t1, t2) => App(subst(t1, x, s), subst(t2, x, s))
   }
 
