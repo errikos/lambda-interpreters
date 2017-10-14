@@ -36,6 +36,17 @@ object Untyped extends StandardTokenParsers {
     case App(t1, t2) => fv(t1) ++ fv(t2)
   }
 
+  /** Object that generates fresh variables.
+   *  Format is: "_%d" (in C-printf style).
+   */
+  object VarGen {
+    private var cvar: Int = 0
+    def getVar: String = {
+      cvar += 1
+      "_" + cvar.toString()
+    }
+  }
+
   /** <p>
    *    Alpha conversion: term <code>t</code> should be a lambda abstraction
    *    <code>\x. t</code>.
@@ -49,8 +60,11 @@ object Untyped extends StandardTokenParsers {
    *  @return  the transformed term with bound variables renamed.
    */
   def alpha(t: Term): Term = t match {
-    case Abs(v, t) => t  // TODO
-    case _ => null
+    case Abs(v, t) => {
+      val f = VarGen.getVar
+      Abs(f, subst(t, v, Var(f)))
+    }
+    case _ => null  // This should never match.
   }
 
   /** Straight forward substitution method
