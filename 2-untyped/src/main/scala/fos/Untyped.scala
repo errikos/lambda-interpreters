@@ -76,6 +76,7 @@ object Untyped extends StandardTokenParsers {
    *  @param s the term we replace x with
    *  @return  the substituted term
    */
+  // Current status: 9 out of 11
   def subst(t: Term, x: String, s: Term): Term = t match {
     case Var(v) if v == x => s
     case Var(v) if v != x => t
@@ -96,6 +97,7 @@ object Untyped extends StandardTokenParsers {
    *  @param t the initial term
    *  @return  the reduced term
    */
+  // Current status: 15 out of 22
   def reduceNormalOrder(t: Term): Term = t match {
     case App(Abs(v, t1), t2) => subst(t1, v, t2)
     case App(t1, t2) => try { App(reduceNormalOrder(t1), t2) } catch {
@@ -106,6 +108,7 @@ object Untyped extends StandardTokenParsers {
   }
 
   /** Call by value reducer. */
+  // Current status: 9 out of 22
   def reduceCallByValue(t: Term): Term = t match {
     case App(t1, a @ Abs(v, t2)) => App(reduceCallByValue(t1), a)
     case App(t1, t2) => App(t1, reduceCallByValue(t2))
