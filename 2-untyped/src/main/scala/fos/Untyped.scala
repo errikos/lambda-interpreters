@@ -79,7 +79,7 @@ object Untyped extends StandardTokenParsers {
   def subst(t: Term, x: String, s: Term): Term = t match {
     case Var(v) if v == x => s
     case Var(v) if v != x => t
-    case Abs(v, t) if v == x => t
+    case a @ Abs(v, t) if v == x => a
     case Abs(v, t) if v != x && !fv(s).contains(v) => Abs(v, subst(t, x, s))
     case r @ Abs(v, t) if v != x && fv(s).contains(v) => {
       // α-reduction is needed
@@ -107,6 +107,7 @@ object Untyped extends StandardTokenParsers {
 
   /** Call by value reducer. */
   def reduceCallByValue(t: Term): Term = t match {
+    case App(Abs(v, t1), t2) => subst(t1, v, t2)
     case App(t1, a @ Abs(v, t2)) => App(reduceCallByValue(t1), a)
     case App(t1, t2) => App(t1, reduceCallByValue(t2))
     case _ => throw new NoReductionPossible(t)
