@@ -28,6 +28,11 @@ object Untyped extends StandardTokenParsers {
 
   /** Return the free variables in t.
    *
+   *  Rules:
+   *    FV(x) = { x }
+   *    FV(λx.t) = FV(t) \ { x }
+   *    FV(t1 t2) = FV(t1) ∪ FV(t2)
+   *
    *  @param t the given term.
    */
   def fv(t: Term): Set[String] = t match {
@@ -61,8 +66,8 @@ object Untyped extends StandardTokenParsers {
    */
   def alpha(t: Term): Term = t match {
     case Abs(v, t) => {
-      val f = VarGen.getVar
-      Abs(f, subst(t, v, Var(f)))
+      val f = VarGen.getVar  // Get a fresh variable.
+      Abs(f, subst(t, v, Var(f)))  // Substitute v for f in t and return.
     }
     case _ => null  // This should never match.
   }
@@ -97,10 +102,13 @@ object Untyped extends StandardTokenParsers {
    *  @return  the reduced term
    */
   def reduceNormalOrder(t: Term): Term = t match {
+    // [Rule 4] β-reduction.
     case App(Abs(v, t1), t2) => subst(t1, v, t2)
+    // [Rules 1 and 2] Try to reduce t1. If not possible, reduce t2.
     case App(t1, t2) => try { App(reduceNormalOrder(t1), t2) } catch {
       case NoReductionPossible(_) => App(t1, reduceNormalOrder(t2))
     }
+    // [Rule 3] If t1 -> t1', then λx.t1 -> λx.t1'.
     case Abs(v, t) => Abs(v, reduceNormalOrder(t))
     case _ => throw new NoReductionPossible(t)
   }
