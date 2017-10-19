@@ -14,9 +14,52 @@ object SimplyTyped extends StandardTokenParsers {
 
   /** Term     ::= SimpleTerm { SimpleTerm }
    */
-  def Term: Parser[Term] =
-    ???
+  def Term: Parser[Term] = (
+      // Left-associate applications
+      chainl1(Term2, success(App(_: Term, _: Term)))
+  )
 
+  def Term2: Parser[Term] = (
+      "true" ^^^ True()
+    | "false" ^^^ False()
+    | "if"~Term2~"then"~Term2~"else"~Term2 ^^ {
+      case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2)
+      }
+    | numericLit ^^ {
+        case value => {
+          var x: Term = Zero()
+          for (i <- 1 to value.toInt) { x = Succ(x) }
+          x
+        }
+      }
+    | "pred"~Term ^^ { case "pred"~t => Pred(t) }
+    | "succ"~Term ^^ { case "succ"~t => Succ(t) }
+    | "iszero"~Term ^^ { case "iszero"~t => IsZero(t) }
+    | ident ^^ { case v => Var(v) }
+    | "\\"~ident~":"~Type~"."~Term ^^ { case "\\"~v~":"~tp~"."~t => Abs(v, tp, t) }
+    | "("~>Term<~")"
+  )
+
+  /** Parser for types.
+   *
+   *  T ::= "Bool"
+   *      | "Nat"
+   *      | T "->" T
+   *      | "(" T ")"
+   */
+  def Type: Parser[Type] = (
+    // TODO: Make the type construction right-associative
+      chainr1(Type2,
+              "->" ^^^ {(t1: Type, t2: TypeFun) => TypeFun(t1, t2)},
+              {(t1: Type, t2: TypeFun) => TypeFun(t1, t2)}, Nil)
+    // | Type~"->"~Type ^^ { case t1~"->"~t2 => TypeFun(t1, t2) }
+  )
+
+  def Type2: Parser[Type] = (
+      "Bool" ^^^ TypeBool
+    | "Nat" ^^^ TypeNat
+    | "("~>Type<~")"
+  )
 
 
   /** Thrown when no reduction rule applies to the given term. */
@@ -32,9 +75,9 @@ object SimplyTyped extends StandardTokenParsers {
   type Context = List[(String, Type)]
 
   /** Call by value reducer. */
-  def reduce(t: Term): Term =
-    ???
-
+  def reduce(t: Term): Term = t match {
+    case _ => throw new NoRuleApplies(t)
+  }
 
   /** Returns the type of the given term <code>t</code>.
    *
@@ -44,7 +87,6 @@ object SimplyTyped extends StandardTokenParsers {
    */
   def typeof(ctx: Context, t: Term): Type =
     ???
-
 
   /** Returns a stream of terms, each being one step of reduction.
    *
@@ -64,6 +106,8 @@ object SimplyTyped extends StandardTokenParsers {
   def main(args: Array[String]): Unit = {
     val stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
     val tokens = new lexical.Scanner(stdin.readLine())
+    println(phrase(Term)(tokens))
+    return
     phrase(Term)(tokens) match {
       case Success(trees, _) =>
         try {
