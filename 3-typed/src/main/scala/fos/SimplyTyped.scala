@@ -81,6 +81,13 @@ object SimplyTyped extends StandardTokenParsers {
 
   /** Call by value reducer. */
   def reduce(t: Term): Term = t match {
+    case If(True(), t1, t2) => t1
+    case If(False(), t1, t2) => t2
+    case IsZero(Zero()) => True()
+    case IsZero(Succ(_)) => False()
+    case Pred(Zero()) => Zero()
+    case Pred(Succ(nv)) => nv
+//    case App(Abs(x, tp, t1), v2) => ???
     case _ => throw NoRuleApplies(t)
   }
 
