@@ -35,10 +35,10 @@ case class Abs(v: String, tp: Type, t: Term) extends Term {
   override def toString() = "(\\" + v + ":" + tp + "." + t + ")"
 }
 case class App(t1: Term, t2: Term) extends Term {
-  override def toString() = t1.toString + (t2 match {
-    case App(_, _) => " (" + t2.toString + ")" // left-associative
-    case _         => " " + t2.toString
-  })
+  override def toString() = (t1 match {
+    case App(_, _) => " (" + t1.toString + ")" // left-associative
+    case _         => t1.toString
+  }) + " " + t2.toString
 }
 case class TermPair(t1: Term, t2: Term) extends Term {
   override def toString() = "{" + t1 + "," + t2 + "}"
@@ -62,10 +62,10 @@ case object TypeNat extends Type {
   override def toString() = "Nat"
 }
 case class TypeFun(t1: Type, t2: Type) extends Type {
-  override def toString() = (t1 match {
-    case TypeFun(_, _) => "(" + t1 + ")" // right-associative
-    case _             => t1.toString
-  }) + "->" + t2
+  override def toString() = t1.toString + "->" + (t2 match {
+    case TypeFun(_, _) => "(" + t2.toString + ")" // right-associative
+    case _             => t2.toString
+  })
 }
 case class TypePair(t1: Type, t2: Type) extends Type {
   override def toString() = "(" + t1 + " * " + t2 + ")"
