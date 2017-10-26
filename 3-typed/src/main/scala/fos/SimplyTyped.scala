@@ -21,8 +21,7 @@ object SimplyTyped extends StandardTokenParsers {
       "true" ^^^ True()
     | "false" ^^^ False()
     | "if"~Term2~"then"~Term2~"else"~Term2 ^^ {
-      case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2)
-      }
+        case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2) }
     | numericLit ^^ {
         value => {
           var x: Term = Zero()
@@ -37,6 +36,8 @@ object SimplyTyped extends StandardTokenParsers {
     | "iszero"~Term ^^ { case "iszero"~t => IsZero(t) }
     | ident ^^ (v => Var(v))
     | "\\"~ident~":"~Type~"."~Term ^^ { case "\\"~v~":"~tp~"."~t => Abs(v, tp, t) }
+    | "let"~ident~":"~Type~"="~Term~"in"~Term ^^ {  // Parse and desugar "let" statement
+        case "let"~v~":"~tp~"="~t1~"in"~t2 => App(Abs(v, tp, t2), t1) }
     | "("~>Term<~")"
   )
 
