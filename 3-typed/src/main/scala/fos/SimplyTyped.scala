@@ -1,5 +1,6 @@
 package fos
 
+import scala.reflect.ClassTag
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input._
 
@@ -38,6 +39,9 @@ object SimplyTyped extends StandardTokenParsers {
     | "\\"~ident~":"~Type~"."~Term ^^ { case "\\"~v~":"~tp~"."~t => Abs(v, tp, t) }
     | "let"~ident~":"~Type~"="~Term~"in"~Term ^^ {  // Parse and desugar "let" statement
         case "let"~v~":"~tp~"="~t1~"in"~t2 => App(Abs(v, tp, t2), t1) }
+    | "{"~Term~","~Term~"}" ^^ { case "{"~t1~","~t2~"}" => TermPair(t1, t2) }
+    | "fst"~Term ^^ { case "fst"~t => First(t) }
+    | "snd"~Term ^^ { case "snd"~t => Second(t) }
     | "("~>Term<~")"
   )
 
@@ -48,9 +52,10 @@ object SimplyTyped extends StandardTokenParsers {
    *      | T "->" T
    *      | "(" T ")"
    */
-  def Type: Parser[Type] = {
-    rep1sep(Type2, "->") ^^ rightAssociateTypes
-  }
+  def Type: Parser[Type] = (
+      rep1sep(Type2, "->") ^^ rightAssociateFun
+    | rep1sep(Type2, "*") ^^ rightAssociatePair
+  )
 
   def Type2: Parser[Type] = (
       "Bool" ^^^ TypeBool
@@ -63,9 +68,14 @@ object SimplyTyped extends StandardTokenParsers {
    * @param typeList the list of parsed Types
    * @return         the right-associated TypeFun object
    */
-  def rightAssociateTypes(typeList: List[Type]): Type = typeList match {
+  def rightAssociateFun[T](typeList: List[Type]): Type = typeList match {
     case t :: Nil => t
-    case t :: ts => TypeFun(t, rightAssociateTypes(ts))
+    case t :: ts => TypeFun(t, rightAssociateFun(ts))
+  }
+
+  def rightAssociatePair[T](typeList: List[Type]): Type = typeList match {
+    case t :: Nil => t
+    case t :: ts => TypePair(t, rightAssociatePair(ts))
   }
 
   /** Thrown when no reduction rule applies to the given term. */
