@@ -78,22 +78,75 @@ object SimplyTyped extends StandardTokenParsers {
     case t :: ts => TypePair(t, rightAssociatePair(ts))
   }
 
-  /** Thrown when no reduction rule applies to the given term. */
-  case class NoRuleApplies(t: Term) extends Exception(t.toString)
-
-  /** Print an error message, together with the position where it occured. */
-  case class TypeError(t: Term, msg: String) extends Exception(msg) {
-    override def toString: String =
-      msg + "\n" + t
+  /** Return the free variables in t.
+    *
+    *  Rules:
+    *    FV(x) = { x }
+    *    FV(λx.t) = FV(t) \ { x }
+    *    FV(t1 t2) = FV(t1) ∪ FV(t2)
+    *
+    *  @param t the given term.
+    */
+  def fv(t: Term): Set[String] = t match {
+    case Var(v) => Set(v)
+    case Abs(v, _, t1) => fv(t1) - v
+    case App(t1, t2) => fv(t1) ++ fv(t2)
   }
 
-  /** The context is a list of variable names paired with their type. */
-  type Context = List[(String, Type)]
+  /** Object that generates fresh variables.
+    *  Format is: "_%d" (in C-printf style).
+    */
+  object VarGen {
+    private var cvar: Int = 0
+    def getVar: String = {
+      cvar += 1
+      "_" + cvar.toString
+    }
+  }
+
+  /** <p>
+    *    Alpha conversion: term <code>t</code> should be a lambda abstraction
+    *    <code>\x. t</code>.
+    *  </p>
+    *  <p>
+    *    All free occurences of <code>x</code> inside term <code>t/code>
+    *    will be renamed to a unique name.
+    *  </p>
+    *
+    *  @param t the given lambda abstraction.
+    *  @return  the transformed term with bound variables renamed.
+    */
+  def alpha(t: Term): Term = t match {
+    case Abs(v, tp, t1) =>
+      val f = VarGen.getVar // Get a fresh variable.
+      Abs(f, tp, subst(t1, v, Var(f))) // Substitute v for f in t and return.
+    case _ => null  // This should never match.
+  }
+
+  /** Straight forward substitution method
+    *  (see definition 5.3.5 in TAPL book).
+    *  [x -> s]t
+    *
+    *  @param t the term in which we perform substitution
+    *  @param x the variable name
+    *  @param s the term we replace x with
+    *  @return  the substituted term
+    */
+  def subst(t: Term, x: String, s: Term): Term = t match {
+    case Var(v) if v == x => s
+    case Var(v) if v != x => t
+    case a @ Abs(v, _, _) if v == x => a
+    case Abs(v, tp, t1) if v != x && !fv(s).contains(v) => Abs(v, tp, subst(t1, x, s))
+    case r @ Abs(v, _, _) if v != x && fv(s).contains(v) =>  // α-reduction is needed
+      alpha(r) match { case Abs(f, tp, t1) => Abs(f, tp, subst(t1, x, s)) }
+    case App(t1, t2) => App(subst(t1, x, s), subst(t2, x, s))
+  }
 
   /** Call by value reducer. */
   def reduce(t: Term): Term = t match {
-    case If(True(), t1, t2) => t1
-    case If(False(), t1, t2) => t2
+    // Computation rules
+    case If(True(), t1, _) => t1
+    case If(False(), _, t2) => t2
     case IsZero(Zero()) => True()
     case IsZero(Succ(_)) => False()
     case Pred(Zero()) => Zero()
