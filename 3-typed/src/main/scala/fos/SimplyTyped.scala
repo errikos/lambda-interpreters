@@ -151,9 +151,39 @@ object SimplyTyped extends StandardTokenParsers {
     case IsZero(Succ(_)) => False()
     case Pred(Zero()) => Zero()
     case Pred(Succ(nv)) => nv
-//    case App(Abs(x, tp, t1), v2) => ???
+    case App(Abs(x, _, t1), v2) if isValue(v2) => subst(t1, x, v2)
+    // Congruence rules
+    case If(t1, t2, t3) => If(reduce(t1), t2, t3)
+    case IsZero(t1) => IsZero(reduce(t1))
+    case Succ(t1) => Succ(reduce(t1))
+    case Pred(t1) => Pred(reduce(t1))
+    case App(v1, t2) if isValue(v1) => App(v1, reduce(t2))
+    case App(t1, t2) => App(reduce(t1), t2)
+    // Pairs
+    case First(p @ TermPair(v1, _)) if isValue(p) => v1
+    case Second(p @ TermPair(_, v2)) if isValue(p) => v2
+    case First(p) => First(reduce(p))
+    case Second(p) => Second(reduce(p))
+    case TermPair(v1, t2) if isValue(v1) => TermPair(v1, reduce(t2))
+    case TermPair(t1, t2) => TermPair(reduce(t1), t2)
     case _ => throw NoRuleApplies(t)
   }
+
+  def isValue(t: Term): Boolean = t match {
+    case True() => true
+    case False() => true
+    case Zero() => true
+    case Succ(_) => true
+    case Abs(_, _, _) => true
+    case TermPair(v1, v2) if isValue(v1) && isValue(v2) => true
+    case _ => false
+  }
+
+  /** Thrown when no reduction rule applies to the given term. */
+  case class NoRuleApplies(t: Term) extends Exception(t.toString)
+
+  /** The context is a list of variable names paired with their type. */
+  type Context = List[(String, Type)]
 
   /** Returns the type of the given term <code>t</code>.
    *
