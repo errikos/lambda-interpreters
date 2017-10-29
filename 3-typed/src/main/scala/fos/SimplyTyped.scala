@@ -205,7 +205,7 @@ object SimplyTyped extends StandardTokenParsers {
       else throw TypeError(t, "parameter type mismatch: expected " + tp2 + ", found " + tp3)
     case Var(x) =>
       val o: Option[(String, Type)] = ctx find { case (s, _) => s == x }
-      o.get match {
+      o.getOrElse(throw TypeError(t, "could not infer type for: " + t.toString)) match {
         case (_, tp) => tp
       }
     case Abs(x, tp1, t1) => TypeFun(tp1, typeof((x, tp1)::ctx, t1))
@@ -218,13 +218,13 @@ object SimplyTyped extends StandardTokenParsers {
     case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
     case First(p) => typeof(ctx, p) match {
       case TypePair(tp1, _) => tp1
-      case tp => throw TypeError(p, "pair type expected but " + tp + " found")
+      case tp => throw TypeError(t, "pair type expected but " + tp + " found")
     }
     case Second(p) => typeof(ctx, p) match {
       case TypePair(_, tp2) => tp2
       case tp => throw TypeError(t, "pair type expected but " + tp.toString + " found")
     }
-    case _ => throw TypeError(t, "Illegal type: " + t.toString)
+    case _ => throw TypeError(t, "could not infer type for: " + t.toString)
   }
 
   /** Print an error message, together with the position where it occured. */
