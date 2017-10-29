@@ -1,6 +1,5 @@
 package fos
 
-import scala.reflect.ClassTag
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input._
 
@@ -21,7 +20,7 @@ object SimplyTyped extends StandardTokenParsers {
   def Term2: Parser[Term] = (
       "true" ^^^ True()
     | "false" ^^^ False()
-    | "if"~Term2~"then"~Term2~"else"~Term2 ^^ {
+    | "if"~Term~"then"~Term~"else"~Term ^^ {
         case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2) }
     | numericLit ^^ {
         value => {
@@ -52,12 +51,13 @@ object SimplyTyped extends StandardTokenParsers {
    *      | T "->" T
    *      | "(" T ")"
    */
-  def Type: Parser[Type] = (
-      rep1sep(Type2, "->") ^^ rightAssociateFun
-    | rep1sep(Type2, "*") ^^ rightAssociatePair
-  )
+  def Type: Parser[Type] =
+    rep1sep(PairType, "->") ^^ rightAssociateFun
 
-  def Type2: Parser[Type] = (
+  def PairType: Parser[Type] =
+    rep1sep(BaseType, "*") ^^ rightAssociatePair
+
+  def BaseType: Parser[Type] = (
       "Bool" ^^^ TypeBool
     | "Nat" ^^^ TypeNat
     | "("~>Type<~")"
