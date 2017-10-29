@@ -161,8 +161,47 @@ object SimplyTyped extends StandardTokenParsers {
    *  @param t   the given term
    *  @return    the computed type
    */
-  def typeof(ctx: Context, t: Term): Type =
-    ???
+  def typeof(ctx: Context, t: Term): Type = t match {
+    case True() => TypeBool
+    case False() => TypeBool
+    case Zero() => TypeNat
+    case Pred(t1) if typeof(ctx, t1) == TypeNat => TypeNat
+    case Succ(t1) if typeof(ctx, t1) == TypeNat => TypeNat
+    case IsZero(t1) if typeof(ctx, t1) == TypeNat => TypeBool
+    case If(t1, t2, t3) if typeof(ctx, t1) == TypeBool =>
+      val tp2 = typeof(ctx, t2)
+      val tp3 = typeof(ctx, t3)
+      if (tp2 == tp3) tp2
+      else throw TypeError(t, "parameter type mismatch: expected " + tp2 + ", found " + tp3)
+    case Var(x) =>
+      val o: Option[(String, Type)] = ctx find { case (s, _) => s == x }
+      o.get match {
+        case (_, tp) => tp
+      }
+    case Abs(x, tp1, t1) => TypeFun(tp1, typeof((x, tp1)::ctx, t1))
+    case App(t1, t2) => (typeof(ctx, t1), typeof(ctx, t2)) match {
+      case (TypeFun(t11, t12), tp) =>
+        if (tp == t11) t12
+        else throw TypeError(t, "parameter type mismatch: expected " + t11.toString + ", found " + tp.toString)
+    }
+    // Pairs
+    case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
+    case First(p) => typeof(ctx, p) match {
+      case TypePair(tp1, _) => tp1
+      case tp => throw TypeError(p, "pair type expected but " + tp + " found")
+    }
+    case Second(p) => typeof(ctx, p) match {
+      case TypePair(_, tp2) => tp2
+      case tp => throw TypeError(t, "pair type expected but " + tp.toString + " found")
+    }
+    case _ => throw TypeError(t, "Illegal type: " + t.toString)
+  }
+
+  /** Print an error message, together with the position where it occured. */
+  case class TypeError(t: Term, msg: String) extends Exception(msg) {
+    override def toString: String =
+      msg + "\n" + t
+  }
 
   /** Returns a stream of terms, each being one step of reduction.
    *
