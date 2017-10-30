@@ -88,9 +88,18 @@ object SimplyTyped extends StandardTokenParsers {
     *  @param t the given term.
     */
   def fv(t: Term): Set[String] = t match {
+    case If(t1, t2, t3) => fv(t1) ++ fv(t2) ++ fv(t3)
+    case Pred(t1) => fv(t1)
+    case Succ(t1) => fv(t1)
+    case IsZero(t1) => fv(t1)
     case Var(v) => Set(v)
     case Abs(v, _, t1) => fv(t1) - v
     case App(t1, t2) => fv(t1) ++ fv(t2)
+    // Pairs
+    case TermPair(t1, t2) => fv(t1) ++ fv(t2)
+    case First(t1) => fv(t1)
+    case Second(t1) => fv(t1)
+    case _ => Set()
   }
 
   /** Object that generates fresh variables.
@@ -133,6 +142,10 @@ object SimplyTyped extends StandardTokenParsers {
     *  @return  the substituted term
     */
   def subst(t: Term, x: String, s: Term): Term = t match {
+    case If(t1, t2, t3) => If(subst(t1, x, s), subst(t2, x, s), subst(t3, x, s))
+    case Pred(t1) => Pred(subst(t1, x, s))
+    case Succ(t1) => Succ(subst(t1, x, s))
+    case IsZero(t1) => IsZero(subst(t1, x, s))
     case Var(v) if v == x => s
     case Var(v) if v != x => t
     case a @ Abs(v, _, _) if v == x => a
@@ -140,6 +153,11 @@ object SimplyTyped extends StandardTokenParsers {
     case r @ Abs(v, _, _) if v != x && fv(s).contains(v) =>  // α-reduction is needed
       alpha(r) match { case Abs(f, tp, t1) => Abs(f, tp, subst(t1, x, s)) }
     case App(t1, t2) => App(subst(t1, x, s), subst(t2, x, s))
+    // Pairs
+    case TermPair(t1, t2) => TermPair(subst(t1, x, s), subst(t2, x, s))
+    case First(t1) => First(subst(t1, x, s))
+    case Second(t1) => Second(subst(t1, x, s))
+    case t1 => t1
   }
 
   /** Call by value reducer. */
