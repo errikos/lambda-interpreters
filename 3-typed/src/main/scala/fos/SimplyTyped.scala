@@ -235,12 +235,13 @@ object SimplyTyped extends StandardTokenParsers {
       case (TypeFun(t11, t12), tp) =>
         if (tp == t11) t12
         else throw TypeError(t, "parameter type mismatch: expected " + t11.toString + ", found " + tp.toString)
+      case (tp1, _) => throw TypeError(t, "parameter type mismatch: expected Type -> Type, found " + tp1)
     }
     // Pairs
     case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
     case First(p) => typeof(ctx, p) match {
       case TypePair(tp1, _) => tp1
-      case tp => throw TypeError(t, "pair type expected but " + tp + " found")
+      case tp => throw TypeError(t, "pair type expected but " + tp.toString + " found")
     }
     case Second(p) => typeof(ctx, p) match {
       case TypePair(_, tp2) => tp2
