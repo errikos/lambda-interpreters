@@ -166,7 +166,7 @@ object SimplyTyped extends StandardTokenParsers {
     case If(True(), t1, _) => t1
     case If(False(), _, t2) => t2
     case IsZero(Zero()) => True()
-    case IsZero(Succ(_)) => False()
+    case IsZero(Succ(t1)) if isNumValue(t1) => False()
     case Pred(Zero()) => Zero()
     case Pred(Succ(nv)) => nv
     case App(Abs(x, _, t1), v2) if isValue(v2) => subst(t1, x, v2)
@@ -190,10 +190,14 @@ object SimplyTyped extends StandardTokenParsers {
   def isValue(t: Term): Boolean = t match {
     case True() => true
     case False() => true
-    case Zero() => true
-    case Succ(_) => true
     case Abs(_, _, _) => true
     case TermPair(v1, v2) if isValue(v1) && isValue(v2) => true
+    case t1 => isNumValue(t1)
+  }
+
+  def isNumValue(t: Term): Boolean = t match {
+    case Zero() => true
+    case Succ(nv) => isNumValue(nv)
     case _ => false
   }
 
