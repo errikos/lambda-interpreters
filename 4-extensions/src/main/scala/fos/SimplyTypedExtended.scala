@@ -18,7 +18,7 @@ object SimplyTypedExtended extends  StandardTokenParsers {
   /** Term     ::= SimpleTerm { SimpleTerm }
    */
   def Term: Parser[Term] =
-    ???
+    chainl1(SimpleTerm, success(App(_: Term, _: Term)))
 
   /** SimpleTerm ::= "true"
    *               | "false"
@@ -40,8 +40,39 @@ object SimplyTypedExtended extends  StandardTokenParsers {
    *               | "fix" Term
    *               | "letrec" ident ":" Type "=" Term "in" Term</pre>
    */
-  def SimpleTerm: Parser[Term] =
-    ???
+  def SimpleTerm: Parser[Term] = (
+      "true" ^^^ True()
+    | "false" ^^^ False()
+    | numericLit ^^ {
+        value => {
+          var x: Term = Zero()
+          for (_ <- 1 to value.toInt) x = Succ(x)
+          x
+        }
+      }
+    | "succ"~Term ^^ { case "succ"~term => Succ(term) }
+    | "pred"~Term ^^ { case "pred"~term => Pred(term) }
+    | "iszero"~Term ^^ { case "iszero"~term => IsZero(term) }
+    | "if"~Term~"then"~Term~"else"~Term ^^ { case "if"~cond~"then"~t1~"else"~t2 => If(cond, t1, t2) }
+    | ident ^^ { v => Var(v) }
+    | "\\"~ident~":"~Type~"."~Term ^^ { case "\\"~v~":"~tp~"."~t => Abs(v, tp, t) }
+    | "let"~ident~":"~Type~"="~Term~"in"~Term ^^ {  // Parse and desugar "let" statement
+        case "let"~v~":"~tp~"="~t1~"in"~t2 => App(Abs(v, tp, t2), t1)
+      }
+    | "{"~Term~","~Term~"}" ^^ { case "{"~t1~","~t2~"}" => TermPair(t1, t2) }
+    | "fst"~Term ^^ { case "fst"~t => First(t) }
+    | "snd"~Term ^^ { case "snd"~t => Second(t) }
+    | "inl"~Term~"as"~Type ^^ { case "inl"~t~"as"~tp => Inl(t, tp) }
+    | "inr"~Term~"as"~Type ^^ { case "inr"~t~"as"~tp => Inl(t, tp) }
+    | "case"~Term~"of"~"inl"~ident~"=>"~Term~"|"~"inr"~ident~"=>"~Term ^^ {
+        case "case"~t1~"of"~"inl"~x1~"=>"~t2~"|"~"inr"~x2~"=>"~t3 => Case(t1, x1, t2, x2, t3)
+      }
+    | "fix"~Term ^^ { case "fix"~term => Fix(term) }
+    | "letrec"~ident~":"~Type~"="~Term~"in"~Term ^^ { // Parse and desugar "letrec" statement
+        case "letrec"~x~":"~tp~"="~t1~"in"~t2 => App(Abs(x, tp, t2), Fix(Abs(x, tp, t1)))
+      }
+    | "("~>Term<~")"
+  )
 
   /** Type       ::= SimpleType [ "->" Type ]
    */
@@ -61,14 +92,14 @@ object SimplyTypedExtended extends  StandardTokenParsers {
 
   /** Call by value reducer. */
   def reduce(t: Term): Term =
-    ???
+    throw NoRuleApplies(t)
 
   /** Thrown when no reduction rule applies to the given term. */
   case class NoRuleApplies(t: Term) extends Exception(t.toString)
 
   /** Print an error message, together with the position where it occured. */
   case class TypeError(t: Term, msg: String) extends Exception(msg) {
-    override def toString = msg + "\n" + t
+    override def toString: String = msg + "\n" + t
   }
 
   /** The context is a list of variable names paired with their type. */
@@ -81,7 +112,7 @@ object SimplyTypedExtended extends  StandardTokenParsers {
    *  @return    the computed type
    */
   def typeof(ctx: Context, t: Term): Type =
-    ???
+    throw TypeError(t, "could not infer type for: " + t.toString)
 
   def typeof(t: Term): Type = try {
     typeof(Nil, t)
