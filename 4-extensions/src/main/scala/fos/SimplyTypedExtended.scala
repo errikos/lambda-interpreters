@@ -77,7 +77,10 @@ object SimplyTypedExtended extends  StandardTokenParsers {
   /** Type       ::= SimpleType [ "->" Type ]
    */
   def Type: Parser[Type] =
-    rep1sep(SimpleType, "->") ^^ Utils.rightAssociateFun
+    SimpleType~opt("->"~Type ^^ { case "->"~t => t }) ^^ {
+      case st~Some(t) => TypeFun(st, t)
+      case st~None => st
+    }
 
   /** SimpleType ::= BaseType [ ("*" SimpleType) | ("+" SimpleType) ]
    */
