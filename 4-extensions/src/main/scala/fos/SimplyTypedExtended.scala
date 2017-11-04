@@ -157,8 +157,60 @@ object SimplyTypedExtended extends  StandardTokenParsers {
    *  @param t   the given term
    *  @return    the computed type
    */
-  def typeof(ctx: Context, t: Term): Type =
-    throw TypeError(t, "could not infer type for: " + t.toString)
+  def typeof(ctx: Context, t: Term): Type = t match {
+    case True() => TypeBool
+    case False() => TypeBool
+    case Zero() => TypeNat
+    case Pred(t1) if typeof(ctx, t1) == TypeNat => TypeNat
+    case Succ(t1) if typeof(ctx, t1) == TypeNat => TypeNat
+    case IsZero(t1) if typeof(ctx, t1) == TypeNat => TypeBool
+    case If(t1, t2, t3) if typeof(ctx, t1) == TypeBool =>
+      val tp2 = typeof(ctx, t2)
+      val tp3 = typeof(ctx, t3)
+      if (tp2 == tp3) tp2
+      else throw TypeError(t, "parameter type mismatch: expected " + tp2 + ", found " + tp3)
+    case Var(x) =>
+      val o: Option[(String, Type)] = ctx find { case (s, _) => s == x }
+      o.getOrElse(throw TypeError(t, "could not infer type for: " + t)) match {
+        case (_, tp) => tp
+      }
+    case Abs(x, tp1, t1) => TypeFun(tp1, typeof((x, tp1)::ctx, t1))
+    case App(t1, t2) => (typeof(ctx, t1), typeof(ctx, t2)) match {
+      case (TypeFun(t11, t12), tp) =>
+        if (tp == t11) t12
+        else throw TypeError(t, "parameter type mismatch: expected " + t11 + ", found " + tp)
+      case (tp1, _) => throw TypeError(t, "parameter type mismatch: expected T -> T, found " + tp1)
+    }
+    // Pairs
+    case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
+    case First(p) => typeof(ctx, p) match {
+      case TypePair(tp1, _) => tp1
+      case tp => throw TypeError(t, "pair type expected but " + tp + " found")
+    }
+    case Second(p) => typeof(ctx, p) match {
+      case TypePair(_, tp2) => tp2
+      case tp => throw TypeError(t, "pair type expected but " + tp + " found")
+    }
+    // Sums
+    case Case(t0, x1, t1, x2, t2) =>
+      typeof(ctx, t0) match {
+        case TypeSum(tp1, tp2) => (typeof((x1, tp1)::ctx, t1), typeof((x2, tp2)::ctx, t2)) match {
+          case (tpt1, tpt2) =>
+            if (tpt1 == tpt2) tpt1
+            else throw TypeError(t, "parameter type mismatch: expected " + tpt1 + ", found " + tpt2)
+        }
+        case tp => throw TypeError(t, "sum type expected but " + tp + " found")
+      }
+    case Inl(t1, TypeSum(tp1, tp2)) if typeof(ctx, t1) == tp1 => TypeSum(tp1, tp2)
+    case Inr(t1, TypeSum(tp1, tp2)) if typeof(ctx, t1) == tp2 => TypeSum(tp1, tp2)
+    // Fix operator
+    case Fix(t1) => typeof(ctx, t1) match {
+      case TypeFun(tp1, tp2) if tp1 == tp2 => tp1
+      case tp => throw TypeError(t, "parameter type mismatch: expected T -> T, found" + tp)
+    }
+    // Default case
+    case _ => throw TypeError(t, "could not infer type for: " + t)
+  }
 
   def typeof(t: Term): Type = try {
     typeof(Nil, t)
