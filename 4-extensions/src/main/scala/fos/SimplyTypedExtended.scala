@@ -128,9 +128,9 @@ object SimplyTypedExtended extends  StandardTokenParsers {
     case TermPair(v1, t2) if Utils.isValue(v1) => TermPair(v1, reduce(t2))
     case TermPair(t1, t2) => TermPair(reduce(t1), t2)
     // Sums
-    case Case(Inl(v0, _), x1, t1, _, _) => Utils.subst(t1, x1, v0)
-    case Case(Inr(v0, _), _, _, x2, t2) => Utils.subst(t2, x2, v0)
-    case Case(term, x1, t1, x2, t2) => Case(reduce(term), x1, t2, x2, t2)
+    case Case(Inl(v0, _), x1, t1, _, _) if Utils.isValue(v0) => Utils.subst(t1, x1, v0)
+    case Case(Inr(v0, _), _, _, x2, t2) if Utils.isValue(v0) => Utils.subst(t2, x2, v0)
+    case Case(term, x1, t1, x2, t2) => Case(reduce(term), x1, t1, x2, t2)
     case Inl(term, tp) => Inl(reduce(term), tp)
     case Inr(term, tp) => Inr(reduce(term), tp)
     // Fix operator
@@ -335,6 +335,13 @@ object Utils {
     case TermPair(t1, t2) => TermPair(subst(t1, x, s), subst(t2, x, s))
     case First(t1) => First(subst(t1, x, s))
     case Second(t1) => Second(subst(t1, x, s))
+    // Sums
+    case Inl(term, tp) => Inl(subst(term, x, s), tp)
+    case Inr(term, tp) => Inr(subst(term, x, s), tp)
+    case Case(t0, x1, t1, x2, t2) => Case(subst(t0, x, s), x1, subst(t1, x, s), x2, subst(t2, x, s))
+    // Fix operator
+    case Fix(term) => Fix(subst(term, x, s))
+    // Default case
     case t1 => t1
   }
 
@@ -343,6 +350,8 @@ object Utils {
     case False() => true
     case Abs(_, _, _) => true
     case TermPair(v1, v2) if isValue(v1) && isValue(v2) => true
+    case Inl(v, _) if isValue(v) => true
+    case Inr(v, _) if isValue(v) => true
     case t1 => isNumValue(t1)
   }
 
