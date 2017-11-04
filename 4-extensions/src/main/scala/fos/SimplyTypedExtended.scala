@@ -149,7 +149,7 @@ object SimplyTypedExtended extends  StandardTokenParsers {
   }
 
   /** The context is a list of variable names paired with their type. */
-  type Context = List[Pair[String, Type]]
+  type Context = List[(String, Type)]
 
   /** Returns the type of the given term <code>t</code>.
    *
