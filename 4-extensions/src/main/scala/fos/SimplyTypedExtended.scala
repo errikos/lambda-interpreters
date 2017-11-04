@@ -104,8 +104,41 @@ object SimplyTypedExtended extends  StandardTokenParsers {
 
 
   /** Call by value reducer. */
-  def reduce(t: Term): Term =
-    throw NoRuleApplies(t)
+  def reduce(t: Term): Term = t match {
+    // Computation rules
+    case If(True(), t1, _) => t1
+    case If(False(), _, t2) => t2
+    case IsZero(Zero()) => True()
+    case IsZero(Succ(t1)) if Utils.isNumValue(t1) => False()
+    case Pred(Zero()) => Zero()
+    case Pred(Succ(nv)) => nv
+    case App(Abs(x, _, t1), v2) if Utils.isValue(v2) => Utils.subst(t1, x, v2)
+    // Congruence rules
+    case If(t1, t2, t3) => If(reduce(t1), t2, t3)
+    case IsZero(t1) => IsZero(reduce(t1))
+    case Succ(t1) => Succ(reduce(t1))
+    case Pred(t1) => Pred(reduce(t1))
+    case App(v1, t2) if Utils.isValue(v1) => App(v1, reduce(t2))
+    case App(t1, t2) => App(reduce(t1), t2)
+    // Pairs
+    case First(p @ TermPair(v1, _)) if Utils.isValue(p) => v1
+    case Second(p @ TermPair(_, v2)) if Utils.isValue(p) => v2
+    case First(p) => First(reduce(p))
+    case Second(p) => Second(reduce(p))
+    case TermPair(v1, t2) if Utils.isValue(v1) => TermPair(v1, reduce(t2))
+    case TermPair(t1, t2) => TermPair(reduce(t1), t2)
+    // Sums
+    case Case(Inl(v0, _), x1, t1, _, _) => Utils.subst(t1, x1, v0)
+    case Case(Inr(v0, _), _, _, x2, t2) => Utils.subst(t2, x2, v0)
+    case Case(term, x1, t1, x2, t2) => Case(reduce(term), x1, t2, x2, t2)
+    case Inl(term, tp) => Inl(reduce(term), tp)
+    case Inr(term, tp) => Inr(reduce(term), tp)
+    // Fix operator
+    case f @ Fix(Abs(x, _, t2)) => Utils.subst(t2, x, f)
+    case Fix(term) => Fix(reduce(term))
+    // Default case
+    case _ => throw NoRuleApplies(t)
+  }
 
   /** Thrown when no reduction rule applies to the given term. */
   case class NoRuleApplies(t: Term) extends Exception(t.toString)
