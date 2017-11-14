@@ -65,11 +65,13 @@ object SimplyTypedExtended extends  StandardTokenParsers {
     | "inl"~Term~"as"~Type ^^ { case "inl"~t~"as"~tp => Inl(t, tp) }
     | "inr"~Term~"as"~Type ^^ { case "inr"~t~"as"~tp => Inl(t, tp) }
     | "case"~Term~"of"~"inl"~ident~"=>"~Term~"|"~"inr"~ident~"=>"~Term ^^ {
-        case "case"~t1~"of"~"inl"~x1~"=>"~t2~"|"~"inr"~x2~"=>"~t3 => Case(t1, x1, t2, x2, t3)
+        case "case"~term~"of"~"inl"~x1~"=>"~t1~"|"~"inr"~x2~"=>"~t2 => Case(term, x1, t1, x2, t2)
       }
     | "fix"~Term ^^ { case "fix"~term => Fix(term) }
     | "letrec"~ident~":"~Type~"="~Term~"in"~Term ^^ { // Parse and desugar "letrec" statement
-        case "letrec"~x~":"~tp~"="~t1~"in"~t2 => App(Abs(x, tp, t2), Fix(Abs(x, tp, t1)))
+        case "letrec"~x~":"~tp~"="~t1~"in"~t2 =>
+          val f: Term = Fix(Abs(x, tp, t1))
+          App(Abs(x, typeof(f), t2), f)
       }
     | "("~>Term<~")"
   )
