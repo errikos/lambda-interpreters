@@ -340,7 +340,7 @@ object Utils {
     // Sums
     case Inl(term, tp) => Inl(subst(term, x, s), tp)
     case Inr(term, tp) => Inr(subst(term, x, s), tp)
-    case Case(t0, x1, t1, x2, t2) => Case(subst(t0, x, s), x1, subst(t1, x, s), x2, subst(t2, x, s))
+    case Case(t0, x1, t1, x2, t2) => Case(subst(t0, x, s), x1, t1, x2, t2)
     // Fix operator
     case Fix(term) => Fix(subst(term, x, s))
     // Default case
