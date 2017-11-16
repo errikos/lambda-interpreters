@@ -132,6 +132,8 @@ object SimplyTypedExtended extends  StandardTokenParsers {
     // Sums
     case Case(Inl(v0, _), x1, t1, _, _) if Utils.isValue(v0) => Utils.subst(t1, x1, v0)
     case Case(Inr(v0, _), _, _, x2, t2) if Utils.isValue(v0) => Utils.subst(t2, x2, v0)
+    // Case: only substitute on case term, x1 and x2 are bound to the inl and inr tagged elements in order
+    // to extract the desired values, so they kind of form their own context (thus no substitution made)
     case Case(term, x1, t1, x2, t2) => Case(reduce(term), x1, t1, x2, t2)
     case Inl(term, tp) => Inl(reduce(term), tp)
     case Inr(term, tp) => Inr(reduce(term), tp)
