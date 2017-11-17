@@ -63,7 +63,7 @@ object SimplyTypedExtended extends  StandardTokenParsers {
     | "fst"~Term ^^ { case "fst"~t => First(t) }
     | "snd"~Term ^^ { case "snd"~t => Second(t) }
     | "inl"~Term~"as"~Type ^^ { case "inl"~t~"as"~tp => Inl(t, tp) }
-    | "inr"~Term~"as"~Type ^^ { case "inr"~t~"as"~tp => Inl(t, tp) }
+    | "inr"~Term~"as"~Type ^^ { case "inr"~t~"as"~tp => Inr(t, tp) }
     | "case"~Term~"of"~"inl"~ident~"=>"~Term~"|"~"inr"~ident~"=>"~Term ^^ {
         case "case"~term~"of"~"inl"~x1~"=>"~t1~"|"~"inr"~x2~"=>"~t2 => Case(term, x1, t1, x2, t2)
       }
