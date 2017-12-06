@@ -31,19 +31,19 @@ object Parser extends StandardTokenParsers {
   def SimpleTerm: Parser[Term] = positioned(
       "true"          ^^^ True()
     | "false"         ^^^ False()
-    | numericLit      ^^ { case chars => lit2Num(chars.toInt) }
+    | numericLit      ^^ (chars => lit2Num(chars.toInt))
     | "succ" ~ Term   ^^ { case "succ" ~ t => Succ(t) }
     | "pred" ~ Term   ^^ { case "pred" ~ t => Pred(t) }
     | "iszero" ~ Term ^^ { case "iszero" ~ t => IsZero(t) }
     | "if" ~ Term ~ "then" ~ Term ~ "else" ~ Term ^^ {
         case "if" ~ t1 ~ "then" ~ t2 ~ "else" ~ t3 => If(t1, t2, t3)
       }
-    | ident ^^ { case id => Var(id) }
+    | ident ^^ (id => Var(id))
     | "\\" ~ ident ~ opt(":" ~ Type) ~ "." ~ Term ^^ {
       case "\\" ~ x ~ Some(":" ~ tp) ~ "." ~ t => Abs(x, tp, t)
       case "\\" ~ x ~ None ~ "." ~ t => Abs(x, EmptyTypeTree(), t)
     }
-    | "(" ~> Term <~ ")"  ^^ { case t => t }
+    | "(" ~> Term <~ ")"  ^^ (t => t)
     | "let" ~ ident ~ opt(":" ~ Type) ~ "=" ~ Term ~ "in" ~ Term ^^ {
       case "let" ~ x ~ Some(":" ~ tp) ~ "=" ~ t1 ~ "in" ~ t2 => Let(x, tp, t1, t2)
       case "let" ~ x ~ None ~ "=" ~ t1 ~ "in" ~ t2 => Let(x, EmptyTypeTree(), t1, t2)
@@ -66,7 +66,7 @@ object Parser extends StandardTokenParsers {
   def BaseType: Parser[TypeTree] = positioned(
       "Bool" ^^^ BoolTypeTree()
     | "Nat"  ^^^ NatTypeTree()
-    | "(" ~> Type <~ ")" ^^ { case t => t }
+    | "(" ~> Type <~ ")" ^^ (t => t)
   )
 
   private def lit2Num(n: Int): Term =
