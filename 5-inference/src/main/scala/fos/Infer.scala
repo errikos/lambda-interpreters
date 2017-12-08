@@ -31,6 +31,12 @@ object Infer {
       val (typename, constraints) = collect(env, term)
       (BoolType, List.empty ++ (constraints.toSet + ((typename, NatType))))
     case If(t1, t2, t3) =>  // if ... then ... else ...
+      // Γ ⊢ t1: T1 | C1    Γ ⊢ t2 : T2 | C2
+      //          Γ ⊢ t3 : T3 | C3
+      // C = C1 ∪ C2 ∪ C3 ∪ {T1=Bool, T2=T3}
+      // ------------------------------------
+      //  Γ ⊢ if t1 then t2 else t3 : T2 | C
+
       // collect typenames and constraints from t1, t2 and t3
       // Γ ⊢ t1: T1 | C1,  Γ ⊢ t2: T2 | C2,  Γ ⊢ t3: T3 | C3
       val (typename1, constraints1) = collect(env, t1)
@@ -38,9 +44,8 @@ object Infer {
       val (typename3, constraints3) = collect(env, t3)
       // form new constraints
       // C = C1 ∪ C2 ∪ C3 ∪ {T1=Bool, T2=T3}
-      var constraints = constraints1.toSet union constraints2.toSet union constraints3.toSet
-      constraints += ((typename1, BoolType))
-      constraints += ((typename2, typename3))
+      val new_constraints: Set[Constraint] = Set((typename1, BoolType), (typename2, typename3))
+      val constraints = constraints1.toSet union constraints2.toSet union constraints3.toSet union new_constraints
       (typename2, List.empty ++ constraints)
     case Var(x) =>  // variable
       val o: Option[(String, TypeScheme)] = env find { case (s, _) => s == x }
@@ -55,7 +60,6 @@ object Infer {
         // Γ ⊢ λx. t : X -> T2 | C
         case EmptyTypeTree() => TypeVarGen.getTypeVar  // type not declared
 
-        //
         //    Γ, x : T1 ⊢ t : T2 | C
         // ----------------------------
         // Γ ⊢ λx: T1. t : T1 -> T2 | C
@@ -68,15 +72,16 @@ object Infer {
       // X is fresh, C = C1 ∪ C2 ∪ {T1=T2 -> X}
       // --------------------------------------
       //         Γ ⊢ t1 t2 : X | C
+
       // collect typenames and constraints from t1 and t2
       // Γ ⊢ t1 : T1 | C1,  Γ ⊢ t2 : T2 | C2
       val (typename1, constraints1) = collect(env, t1)
       val (typename2, constraints2) = collect(env, t2)
-      val tp = TypeVarGen.getTypeVar
       // form new constraints
       // X is fresh, C = C1 ∪ C2 ∪ {T1=T2 -> X}
-      var constraints = constraints1.toSet union constraints2.toSet
-      constraints += ((typename1, FunType(typename2, tp)))
+      val tp = TypeVarGen.getTypeVar
+      val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
+      val constraints = constraints1.toSet union constraints2.toSet union new_constraints
       (tp, List.empty ++ constraints)
   }
 
