@@ -85,5 +85,50 @@ object Infer {
       (tp, List.empty ++ constraints)
   }
 
-  def unify(c: List[Constraint]): Type => Type = ???
+  /** Unify (solve) the constraints in the given constraint list.
+    *
+    * @param c the constraint list.
+    * @return a "sigma" function, which accepts a Type and returns a new Type, without type variables.
+    */
+  def unify(c: List[Constraint]): Type => Type = sigma(c match {
+    case constraint :: tail => constraint match {
+      case (s, t) if s == t => unify(tail)
+      case (s @ TypeVar(x), t) if !occurs(x, t) => unify(replace(tail, x, t)).compose(Map(s -> t))
+      case (s, t @ TypeVar(x)) if !occurs(x, s) => unify(replace(tail, x, s)).compose(Map(t -> s))
+      case (FunType(s1, s2), FunType(t1, t2)) => unify((s1, t1) :: (s2, t2) :: tail)
+      case (s, t) => throw TypeError("Could not unify: %s with %s".format(s, t))
+    }
+    case _ => x: Type => x
+  })
+
+  /** Given a type, return the its substitution as given by the unifier.
+    *
+    * @param sub the unifier to use for substitution
+    * @param tp the input type (the type to substitute)
+    * @return the resulting type given by sub (the unifier)
+    */
+  private def sigma(sub: Type => Type)(tp: Type): Type = tp match {
+    case FunType(t1, t2) => FunType(sigma(sub)(t1), sigma(sub)(t2))
+    case t @ TypeVar(_) => sub(t)
+    case t => t
+  }
+
+  private def occurs(x: String, t: Type): Boolean = t match {
+    case FunType(t1, t2) => occurs(x, t1) || occurs(x, t2)
+    case TypeVar(y) => x == y
+    case _ => false
+  }
+
+  private def replace(c: List[Constraint], x: String, nt: Type): List[Constraint] = {
+    c.map {
+      case (t1, t2) => (replace_type(t1, x, nt), replace_type(t2, x, nt))
+    }
+  }
+
+  private def replace_type(tp: Type, x: String, nt: Type): Type = tp match {
+    case FunType(t1, t2) => FunType(replace_type(t1, x, nt), replace_type(t2, x, nt))
+    case TypeVar(v) if x == v => nt
+    case o => o
+  }
+
 }
