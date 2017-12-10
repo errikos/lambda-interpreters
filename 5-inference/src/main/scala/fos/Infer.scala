@@ -83,6 +83,7 @@ object Infer {
       val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
       val constraints = constraints1.toSet union constraints2.toSet union new_constraints
       (tp, List.empty ++ constraints)
+    case _ => throw TypeError("Could not collect type and constraints")
   }
 
   /** Unify (solve) the constraints in the given constraint list.
@@ -90,43 +91,90 @@ object Infer {
     * @param c the constraint list.
     * @return a "sigma" function, which accepts a Type and returns a new Type, without type variables.
     */
-  def unify(c: List[Constraint]): Type => Type = sigma(c match {
+  def unify(c: List[Constraint]): Type => Type =
+    // apply_substitution is being curried, expects one type, returns its substitution
+    apply_substitution(unify_map(c))
+
+  private def unify_map(c: List[Constraint]): Map[Type, Type] = c match {
+    case Nil => Map.empty
     case constraint :: tail => constraint match {
-      case (s, t) if s == t => unify(tail)
-      case (s @ TypeVar(x), t) if !occurs(x, t) => unify(replace(tail, x, t)).compose(Map(s -> t))
-      case (s, t @ TypeVar(x)) if !occurs(x, s) => unify(replace(tail, x, s)).compose(Map(t -> s))
-      case (FunType(s1, s2), FunType(t1, t2)) => unify((s1, t1) :: (s2, t2) :: tail)
+      case (s, t) if s == t => unify_map(tail)
+      case (s @ TypeVar(x), t) if !occurs_in(x, t) =>
+        compose_subs(unify_map(replace_in_constraints(tail, x, t)), Map(s -> t))
+      case (s, t @ TypeVar(x)) if !occurs_in(x, s) =>
+        compose_subs(unify_map(replace_in_constraints(tail, x, s)), Map(t -> s))
+      case (FunType(s1, s2), FunType(t1, t2)) => unify_map((s1, t1) :: (s2, t2) :: tail)
       case (s, t) => throw TypeError("Could not unify: %s with %s".format(s, t))
     }
-    case _ => x: Type => x
-  })
+  }
 
-  /** Given a type, return the its substitution as given by the unifier.
+  /** Substitution composition (see TAPL p. 318).
     *
-    * @param sub the unifier to use for substitution
+    * @param sigma the first substitution.
+    * @param gamma the second substitution.
+    * @return the composition of sigma and gamma.
+    */
+  private def compose_subs(sigma: Map[Type, Type], gamma: Map[Type, Type]): Map[Type, Type] = {
+    gamma.map {
+      case (x, t) => (x, apply_substitution(sigma)(t))
+    } ++
+      sigma.filter {
+        case (x, _) if !(gamma contains x) => true
+        case _ => false
+      }
+  }
+
+  /** Given a type, return its substitution as given by the unifier.
+    *
+    * @param sub the unifier to use for the substitution
     * @param tp the input type (the type to substitute)
     * @return the resulting type given by sub (the unifier)
     */
-  private def sigma(sub: Type => Type)(tp: Type): Type = tp match {
-    case FunType(t1, t2) => FunType(sigma(sub)(t1), sigma(sub)(t2))
-    case t @ TypeVar(_) => sub(t)
+  private def apply_substitution(sub: Map[Type, Type])(tp: Type): Type = tp match {
+    case FunType(t1, t2) => FunType(apply_substitution(sub)(t1), apply_substitution(sub)(t2))
+    case t @ TypeVar(_) if sub contains t => sub(t)
     case t => t
   }
 
-  private def occurs(x: String, t: Type): Boolean = t match {
-    case FunType(t1, t2) => occurs(x, t1) || occurs(x, t2)
+  /** Occurs check.
+    * Checks whether x exists in FV(t), where FV(t) is the set of type variables in t.
+    *
+    * @param x the type variable name to check.
+    * @param t the type to check against
+    * @return a Boolean indicating whether x occurs in t.
+    */
+  private def occurs_in(x: String, t: Type): Boolean = t match {
+    case FunType(t1, t2) => occurs_in(x, t1) || occurs_in(x, t2)
     case TypeVar(y) => x == y
     case _ => false
   }
 
-  private def replace(c: List[Constraint], x: String, nt: Type): List[Constraint] = {
+  /** Replace: type variable with name x
+    * With: nt
+    * In: constraint list c.
+    *
+    * @param c the constraint list in which the replacement will take place.
+    * @param x the name of the type variable to replace.
+    * @param nt the new type.
+    * @return the updated constraint list, where all occurrences of x have been replaced with nt.
+    */
+  private def replace_in_constraints(c: List[Constraint], x: String, nt: Type): List[Constraint] = {
     c.map {
-      case (t1, t2) => (replace_type(t1, x, nt), replace_type(t2, x, nt))
+      case (t1, t2) => (replace_in_type(t1, x, nt), replace_in_type(t2, x, nt))
     }
   }
 
-  private def replace_type(tp: Type, x: String, nt: Type): Type = tp match {
-    case FunType(t1, t2) => FunType(replace_type(t1, x, nt), replace_type(t2, x, nt))
+  /** Replace: type variable with name x
+    * With: nt
+    * In: type tp.
+    *
+    * @param tp the type in which the replacement will take place.
+    * @param x the name of the type variable to replace.
+    * @param nt the new type.
+    * @return the updated type, where all occurrences of x have been replaced with nt.
+    */
+  private def replace_in_type(tp: Type, x: String, nt: Type): Type = tp match {
+    case FunType(t1, t2) => FunType(replace_in_type(t1, x, nt), replace_in_type(t2, x, nt))
     case TypeVar(v) if x == v => nt
     case o => o
   }
