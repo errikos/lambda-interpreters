@@ -50,7 +50,7 @@ object Infer {
     case Var(x) =>  // variable
       val o: Option[(String, TypeScheme)] = env find { case (s, _) => s == x }
       o.getOrElse(throw TypeError("Could not collect type for: " + t)) match {
-        case (_, ts) => (ts.tp, List.empty)
+        case (_, ts) => (instantiate_typescheme(ts), List.empty)
       }
     case Abs(v, tp, term) =>  // abstractions
       val vtp: Type = tp match {
@@ -83,6 +83,21 @@ object Infer {
       val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
       val constraints = constraints1.toSet union constraints2.toSet union new_constraints
       (tp, List.empty ++ constraints)
+    case Let(x, tp, t1, t2) =>
+      // type the right hand side v, obtaining a type S1 (=t1_typename)
+      // and a set of constraints C1 (=t1_constraints)
+      val (t1_typename, t1_constraints) = collect(env, t1)
+      // use unification on C1 (=t1_constraints) and
+      // apply the result on S1 (=t1_typename) to find its principal type T1 (=principal_type)
+      val sub = unify(t1_constraints)
+      val principal_type = sub(t1_typename)
+      // the substitution we found should also be applied to the current environment
+      val new_env = substitute_in_env(env, sub)
+      // we generalize some type variables inside T and obtain a type scheme
+      val type_scheme = TypeScheme(generalize(principal_type, new_env), principal_type)
+      // we extend the environment with a binding from "x" to its type scheme.
+      // and typecheck "term" with the new environment.
+      collect((x, type_scheme)::new_env, t2)
     case _ => throw TypeError("Could not collect type and constraints")
   }
 
@@ -100,9 +115,9 @@ object Infer {
     case constraint :: tail => constraint match {
       case (s, t) if s == t => unify_map(tail)
       case (s @ TypeVar(x), t) if !occurs_in(x, t) =>
-        compose_subs(unify_map(replace_in_constraints(tail, x, t)), Map(s -> t))
+        compose_subs(unify_map(substitute_in_constraints(tail, x, t)), Map(s -> t))
       case (s, t @ TypeVar(x)) if !occurs_in(x, s) =>
-        compose_subs(unify_map(replace_in_constraints(tail, x, s)), Map(t -> s))
+        compose_subs(unify_map(substitute_in_constraints(tail, x, s)), Map(t -> s))
       case (FunType(s1, s2), FunType(t1, t2)) => unify_map((s1, t1) :: (s2, t2) :: tail)
       case (s, t) => throw TypeError("Could not unify: %s with %s".format(s, t))
     }
@@ -149,7 +164,7 @@ object Infer {
     case _ => false
   }
 
-  /** Replace: type variable with name x,
+  /** Substitute: type variable with name x,
     * with: type nt,
     * in: constraint list c.
     *
@@ -158,13 +173,13 @@ object Infer {
     * @param nt the new type.
     * @return the updated constraint list, where all occurrences of x have been replaced with nt.
     */
-  private def replace_in_constraints(c: List[Constraint], x: String, nt: Type): List[Constraint] = {
+  private def substitute_in_constraints(c: List[Constraint], x: String, nt: Type): List[Constraint] = {
     c.map {
-      case (t1, t2) => (replace_in_type(t1, x, nt), replace_in_type(t2, x, nt))
+      case (t1, t2) => (substitute_in_type(t1, x, nt), substitute_in_type(t2, x, nt))
     }
   }
 
-  /** Replace: type variable with name x,
+  /** Substitute: type variable with name x,
     * with: type nt,
     * in: type tp.
     *
@@ -173,10 +188,54 @@ object Infer {
     * @param nt the new type.
     * @return the updated type, where all occurrences of x have been replaced with nt.
     */
-  private def replace_in_type(tp: Type, x: String, nt: Type): Type = tp match {
-    case FunType(t1, t2) => FunType(replace_in_type(t1, x, nt), replace_in_type(t2, x, nt))
+  private def substitute_in_type(tp: Type, x: String, nt: Type): Type = tp match {
+    case FunType(t1, t2) => FunType(substitute_in_type(t1, x, nt), substitute_in_type(t2, x, nt))
     case TypeVar(v) if x == v => nt
     case o => o
+  }
+
+  /** Substitute: every type variable in env according to sub.
+    *
+    * @param env the environment in which to substitute.
+    * @param sub the type variable mappings.
+    * @return the new environment.
+    */
+  private def substitute_in_env(env: Env, sub: Type => Type): Env = {
+    env.map {
+      case (x, TypeScheme(ts, tp)) => (x, TypeScheme(ts, sub(tp)))
+    }
+  }
+
+  /** Return the variables in a given type T, that can be generalized,
+    * which are the variables in T that are not mentioned in the given environment.
+    *
+    * @param tp the type T, whose variables to generalize.
+    * @param env the environment.
+    * @return the list of variables of T that can be generalized in the given environment.
+    */
+  private def generalize(tp: Type, env: Env): List[TypeVar] = tp match {
+    case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
+    case t @ TypeVar(x) if !env.exists {
+      case (v, _) if x == v => true
+      case _ => false
+    } => List(t)
+    case _ => List.empty
+  }
+
+  /** Instantiate the given type scheme, which consists of
+    * a list of variables X1, ..., Xn and a principal type T.
+    *
+    * @param ts the type scheme.
+    * @return an instantiation of ts, i.e. [X1 -> Y1, ..., Xn -> Yn] X.
+    */
+  private def instantiate_typescheme(ts: TypeScheme): Type = {
+    val mapping = ts.params.map {
+      case t @ TypeVar(x) => (t, TypeVarGen.getTypeVar)
+    }
+    mapping foreach {
+      case (TypeVar(x), nt) => substitute_in_type(ts.tp, x, nt)
+    }
+    ts.tp
   }
 
 }
