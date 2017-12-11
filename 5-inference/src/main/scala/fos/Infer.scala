@@ -83,21 +83,24 @@ object Infer {
       val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
       val constraints = constraints1.toSet union constraints2.toSet union new_constraints
       (tp, List.empty ++ constraints)
-    case Let(x, tp, t1, t2) =>
-      // type the right hand side v, obtaining a type S1 (=t1_typename)
-      // and a set of constraints C1 (=t1_constraints)
-      val (t1_typename, t1_constraints) = collect(env, t1)
-      // use unification on C1 (=t1_constraints) and
-      // apply the result on S1 (=t1_typename) to find its principal type T1 (=principal_type)
-      val sub = unify(t1_constraints)
-      val principal_type = sub(t1_typename)
-      // the substitution we found should also be applied to the current environment
-      val new_env = substitute_in_env(env, sub)
-      // we generalize some type variables inside T and obtain a type scheme
-      val type_scheme = TypeScheme(generalize(principal_type, new_env), principal_type)
-      // we extend the environment with a binding from "x" to its type scheme.
-      // and typecheck "term" with the new environment.
-      collect((x, type_scheme)::new_env, t2)
+    case Let(x, tp, t1, t2) => tp match {
+      case EmptyTypeTree() =>
+        // type the right hand side v, obtaining a type S1 (=t1_typename)
+        // and a set of constraints C1 (=t1_constraints)
+        val (t1_typename, t1_constraints) = collect(env, t1)
+        // use unification on C1 (=t1_constraints) and
+        // apply the result on S1 (=t1_typename) to find its principal type T1 (=principal_type)
+        val sub = unify(t1_constraints)
+        val principal_type = sub(t1_typename)
+        // the substitution we found should also be applied to the current environment
+        val new_env = substitute_in_env(env, sub)
+        // we generalize some type variables inside T and obtain a type scheme
+        val type_scheme = TypeScheme(generalize(principal_type, new_env), principal_type)
+        // we extend the environment with a binding from "x" to its type scheme.
+        // and typecheck "term" with the new environment.
+        collect((x, type_scheme)::new_env, t2)
+      case _ => collect(env, App(Abs(x, tp, t2), t1))
+    }
     case _ => throw TypeError("Could not collect type and constraints")
   }
 
