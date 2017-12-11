@@ -149,9 +149,9 @@ object Infer {
     case _ => false
   }
 
-  /** Replace: type variable with name x
-    * With: nt
-    * In: constraint list c.
+  /** Replace: type variable with name x,
+    * with: type nt,
+    * in: constraint list c.
     *
     * @param c the constraint list in which the replacement will take place.
     * @param x the name of the type variable to replace.
@@ -164,9 +164,9 @@ object Infer {
     }
   }
 
-  /** Replace: type variable with name x
-    * With: nt
-    * In: type tp.
+  /** Replace: type variable with name x,
+    * with: type nt,
+    * in: type tp.
     *
     * @param tp the type in which the replacement will take place.
     * @param x the name of the type variable to replace.
