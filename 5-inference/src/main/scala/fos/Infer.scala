@@ -205,7 +205,7 @@ object Infer {
     */
   private def substitute_in_env(env: Env, sub: Type => Type): Env = {
     env.map {
-      case (x, TypeScheme(tvs, tp)) => (x, TypeScheme(tvs, sub(tp)))
+      case (x, TypeScheme(params, tp)) => (x, TypeScheme(replace_params(params, tp, sub(tp)), sub(tp)))
     }
   }
 
@@ -219,7 +219,7 @@ object Infer {
   private def generalize(tp: Type, env: Env): List[TypeVar] = tp match {
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
     case tvar @ TypeVar(_) if !env.exists {
-      case (_, TypeScheme(_, t)) if tvar == t => true
+      case (_, TypeScheme(params, t)) if (params contains tvar) || (type_vars(t) contains tvar) => true
       case _ => false
     } => List(tvar)
     case _ => List.empty
@@ -229,10 +229,46 @@ object Infer {
     * a list of variables X1, ..., Xn and a principal type T.
     *
     * @param ts the type scheme.
-    * @return an instantiation of ts, i.e. [X1 -> Y1, ..., Xn -> Yn] X.
+    * @return an instantiation of ts, i.e. [X1 -> Y1, ..., Xn -> Yn] T.
     */
   private def instantiate_typescheme(ts: TypeScheme): Type = {
     apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar)} : _*))(ts.tp)
+  }
+
+  /** Substitute the parameter types in what is supposed to be a type scheme parameter list,
+    * based on the substitutions that have been made to obtain new_type from old_type.
+    *
+    * @param params the parameter list where the substitution should be applied.
+    * @param old_tp the old type.
+    * @param new_tp the new type.
+    * @return the new parameter type list.
+    */
+  private def replace_params(params: List[TypeVar], old_tp: Type, new_tp: Type): List[TypeVar] = {
+    val sub = map_type_variables(old_tp, new_tp)
+    params map { tv => sub(tv) }
+  }
+
+  /** Create a substitution of type variables from one type (old) to another (new).
+    *
+    * @param tp1 the old type.
+    * @param tp2 the new type.
+    * @return the type variable substitution.
+    */
+  private def map_type_variables(tp1: Type, tp2: Type): Map[TypeVar, TypeVar] = (tp1, tp2) match {
+    case (FunType(s1, s2), FunType(t1, t2)) => map_type_variables(s1, t1) ++ map_type_variables(s2, t2)
+    case (s @ TypeVar(_), t @ TypeVar(_)) => Map(s -> t)
+    case _ => Map.empty
+  }
+
+  /** Return a set of the type variables in a type T (referred to as FV(T) in TAPL).
+    *
+    * @param tp the type T whose type variables to return.
+    * @return the set of type variables in T.
+    */
+  private def type_vars(tp: Type): Set[TypeVar] = tp match {
+    case FunType(t1, t2) => type_vars(t1) ++ type_vars(t2)
+    case t @ TypeVar(_) => Set(t)
+    case _ => Set.empty
   }
 
 }
