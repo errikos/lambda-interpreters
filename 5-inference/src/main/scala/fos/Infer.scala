@@ -85,7 +85,7 @@ object Infer {
       (tp, List.empty ++ constraints)
     case Let(x, tp, t1, t2) => tp match {
       case EmptyTypeTree() =>
-        // type the right hand side v, obtaining a type S1 (=t1_typename)
+        // type the right hand side t1, obtaining a type S1 (=t1_typename)
         // and a set of constraints C1 (=t1_constraints)
         val (t1_typename, t1_constraints) = collect(env, t1)
         // use unification on C1 (=t1_constraints) and
@@ -205,7 +205,7 @@ object Infer {
     */
   private def substitute_in_env(env: Env, sub: Type => Type): Env = {
     env.map {
-      case (x, TypeScheme(ts, tp)) => (x, TypeScheme(ts, sub(tp)))
+      case (x, TypeScheme(tvs, tp)) => (x, TypeScheme(tvs, sub(tp)))
     }
   }
 
@@ -218,10 +218,10 @@ object Infer {
     */
   private def generalize(tp: Type, env: Env): List[TypeVar] = tp match {
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
-    case t @ TypeVar(x) if !env.exists {
-      case (v, _) if x == v => true
+    case tvar @ TypeVar(_) if !env.exists {
+      case (_, TypeScheme(_, t)) if tvar == t => true
       case _ => false
-    } => List(t)
+    } => List(tvar)
     case _ => List.empty
   }
 
@@ -232,13 +232,7 @@ object Infer {
     * @return an instantiation of ts, i.e. [X1 -> Y1, ..., Xn -> Yn] X.
     */
   private def instantiate_typescheme(ts: TypeScheme): Type = {
-    val mapping = ts.params.map {
-      case t @ TypeVar(x) => (t, TypeVarGen.getTypeVar)
-    }
-    mapping foreach {
-      case (TypeVar(x), nt) => substitute_in_type(ts.tp, x, nt)
-    }
-    ts.tp
+    apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar)} : _*))(ts.tp)
   }
 
 }
