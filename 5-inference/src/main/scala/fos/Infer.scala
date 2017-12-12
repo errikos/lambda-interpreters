@@ -219,7 +219,7 @@ object Infer {
   private def generalize(tp: Type, env: Env): List[TypeVar] = tp match {
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
     case tvar @ TypeVar(_) if !env.exists {
-      case (_, TypeScheme(params, t)) if (params contains tvar) || (type_vars(t) contains tvar) => true
+      case (_, TypeScheme(_, t)) if type_vars(t) contains tvar => true
       case _ => false
     } => List(tvar)
     case _ => List.empty
