@@ -250,18 +250,6 @@ object Infer {
       case _ => type_vars(tp).toList
     }
 
-  /** Create a substitution of type variables from one type (old) to another (new).
-    *
-    * @param tp1 the old type.
-    * @param tp2 the new type.
-    * @return the type variable substitution.
-    */
-  private def map_type_variables(tp1: Type, tp2: Type): Map[TypeVar, TypeVar] = (tp1, tp2) match {
-    case (FunType(s1, s2), FunType(t1, t2)) => map_type_variables(s1, t1) ++ map_type_variables(s2, t2)
-    case (s @ TypeVar(_), t @ TypeVar(_)) => Map(s -> t)
-    case _ => Map.empty
-  }
-
   /** Return a set of the type variables in a type T (referred to as FV(T) in TAPL).
     *
     * @param tp the type T whose type variables to return.
