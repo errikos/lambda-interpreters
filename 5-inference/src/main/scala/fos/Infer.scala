@@ -23,13 +23,13 @@ object Infer {
     // pred, succ, iszero
     case Pred(term) =>
       val (typename, constraints) = collect(env, term)
-      (NatType, (constraints.toSet + ((typename, NatType))).toList)
+      (NatType, (typename, NatType) :: constraints)
     case Succ(term) =>
       val (typename, constraints) = collect(env, term)
-      (NatType, (constraints.toSet + ((typename, NatType))).toList)
+      (NatType, (typename, NatType) :: constraints)
     case IsZero(term) =>
       val (typename, constraints) = collect(env, term)
-      (BoolType, (constraints.toSet + ((typename, NatType))).toList)
+      (BoolType, (typename, NatType) :: constraints)
     case If(t1, t2, t3) =>  // if ... then ... else ...
       // Γ ⊢ t1: T1 | C1    Γ ⊢ t2 : T2 | C2
       //          Γ ⊢ t3 : T3 | C3
@@ -44,9 +44,8 @@ object Infer {
       val (typename3, constraints3) = collect(env, t3)
       // form new constraints
       // C = C1 ∪ C2 ∪ C3 ∪ {T1=Bool, T2=T3}
-      val new_constraints: Set[Constraint] = Set((typename1, BoolType), (typename2, typename3))
-      val constraints = constraints1.toSet union constraints2.toSet union constraints3.toSet union new_constraints
-      (typename2, constraints.toList)
+      val new_constraints: List[Constraint] = List((typename1, BoolType), (typename2, typename3))
+      (typename2, constraints1 ::: constraints2 ::: constraints3 ::: new_constraints)
     case Var(x) =>  // variable
       val o: Option[(String, TypeScheme)] = env find { case (s, _) => s == x }
       o.getOrElse(throw TypeError("Could not collect type for: " + t)) match {
@@ -80,11 +79,9 @@ object Infer {
       // form new constraints
       // X is fresh, C = C1 ∪ C2 ∪ {T1=T2 -> X}
       val tp = TypeVarGen.getTypeVar
-      val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
-      val constraints = constraints1.toSet union constraints2.toSet union new_constraints
-      (tp, constraints.toList)
+      (tp, (typename1, FunType(typename2, tp)) :: constraints1 ::: constraints2)
     case Let(x, tp, t1, t2) => tp match {
-      case EmptyTypeTree() =>
+      case EmptyTypeTree() =>  // type not declared
         // type the right hand side t1, obtaining a type S1 (=t1_typename)
         // and a set of constraints C1 (=t1_constraints)
         val (t1_typename, t1_constraints) = collect(env, t1)
@@ -99,8 +96,8 @@ object Infer {
         // we extend the environment with a binding from "x" to its type scheme.
         // and typecheck "term" with the new environment.
         val (t2_typename, t2_constraints) = collect((x, type_scheme)::new_env, t2)
-        (t2_typename, t1_constraints ++ t2_constraints)
-      case _ => collect(env, App(Abs(x, tp, t2), t1))
+        (t2_typename, t1_constraints ::: t2_constraints)
+      case _ => collect(env, App(Abs(x, tp, t2), t1))  // type declared, "desugar" to App
     }
     case _ => throw TypeError("Could not collect type and constraints")
   }
