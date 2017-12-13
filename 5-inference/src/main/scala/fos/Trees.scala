@@ -60,12 +60,12 @@ abstract class TypeTree extends Positional {
 }
 
 case class BoolTypeTree() extends TypeTree {
-  override def tpe: BoolType.type = BoolType
-  override def toString: String = "Bool"
+  override def tpe: Type = BoolType
+  override def toString = "Bool"
 }
 
 case class NatTypeTree() extends TypeTree {
-  override def tpe: NatType.type = NatType
+  override def tpe: Type = NatType
   override def toString = "Nat"
 }
 
