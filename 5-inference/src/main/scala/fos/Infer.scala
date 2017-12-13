@@ -23,13 +23,13 @@ object Infer {
     // pred, succ, iszero
     case Pred(term) =>
       val (typename, constraints) = collect(env, term)
-      (NatType, List.empty ++ (constraints.toSet + ((typename, NatType))))
+      (NatType, (constraints.toSet + ((typename, NatType))).toList)
     case Succ(term) =>
       val (typename, constraints) = collect(env, term)
-      (NatType, List.empty ++ (constraints.toSet + ((typename, NatType))))
+      (NatType, (constraints.toSet + ((typename, NatType))).toList)
     case IsZero(term) =>
       val (typename, constraints) = collect(env, term)
-      (BoolType, List.empty ++ (constraints.toSet + ((typename, NatType))))
+      (BoolType, (constraints.toSet + ((typename, NatType))).toList)
     case If(t1, t2, t3) =>  // if ... then ... else ...
       // Γ ⊢ t1: T1 | C1    Γ ⊢ t2 : T2 | C2
       //          Γ ⊢ t3 : T3 | C3
@@ -46,7 +46,7 @@ object Infer {
       // C = C1 ∪ C2 ∪ C3 ∪ {T1=Bool, T2=T3}
       val new_constraints: Set[Constraint] = Set((typename1, BoolType), (typename2, typename3))
       val constraints = constraints1.toSet union constraints2.toSet union constraints3.toSet union new_constraints
-      (typename2, List.empty ++ constraints)
+      (typename2, constraints.toList)
     case Var(x) =>  // variable
       val o: Option[(String, TypeScheme)] = env find { case (s, _) => s == x }
       o.getOrElse(throw TypeError("Could not collect type for: " + t)) match {
@@ -82,7 +82,7 @@ object Infer {
       val tp = TypeVarGen.getTypeVar
       val new_constraints: Set[Constraint] = Set((typename1, FunType(typename2, tp)))
       val constraints = constraints1.toSet union constraints2.toSet union new_constraints
-      (tp, List.empty ++ constraints)
+      (tp, constraints.toList)
     case Let(x, tp, t1, t2) => tp match {
       case EmptyTypeTree() =>
         // type the right hand side t1, obtaining a type S1 (=t1_typename)
@@ -205,7 +205,7 @@ object Infer {
     */
   private def substitute_in_env(env: Env, sub: Type => Type): Env = {
     env.map {
-      case (x, TypeScheme(params, tp)) => (x, TypeScheme(replace_params(params, tp, sub(tp)), sub(tp)))
+      case (x, TypeScheme(params, tp)) => (x, TypeScheme(update_params(params, sub(tp)), sub(tp)))
     }
   }
 
@@ -235,18 +235,20 @@ object Infer {
     apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar)} : _*))(ts.tp)
   }
 
-  /** Substitute the parameter types in what is supposed to be a type scheme parameter list,
-    * based on the substitutions that have been made to obtain new_type from old_type.
+  /** Update the parameter types in what is supposed to be a type scheme parameter list,
+    * in order for them to match the type scheme principal type T.
+    *
+    * If the parameter list had no type parameters to begin with, then the result is the empty list.
+    * Otherwise, the result is a list containing the type variables of T.
     *
     * @param params the parameter list where the substitution should be applied.
-    * @param old_tp the old type.
-    * @param new_tp the new type.
+    * @param tp the type scheme principal type T.
     * @return the new parameter type list.
     */
-  private def replace_params(params: List[TypeVar], old_tp: Type, new_tp: Type): List[TypeVar] = {
-    val sub = map_type_variables(old_tp, new_tp)
-    params map { tv => sub(tv) }
-  }
+  private def update_params(params: List[TypeVar], tp: Type): List[TypeVar] = params match {
+      case Nil => Nil
+      case _ => type_vars(tp).toList
+    }
 
   /** Create a substitution of type variables from one type (old) to another (new).
     *
