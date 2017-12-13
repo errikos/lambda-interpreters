@@ -95,7 +95,7 @@ object Infer {
         // the substitution we found should also be applied to the current environment
         val new_env = substitute_in_env(env, sub)
         // we generalize some type variables inside T and obtain a type scheme
-        val type_scheme = TypeScheme(generalize(principal_type, new_env), principal_type)
+        val type_scheme = TypeScheme(generalize(principal_type, new_env).toList, principal_type)
         // we extend the environment with a binding from "x" to its type scheme.
         // and typecheck "term" with the new environment.
         collect((x, type_scheme)::new_env, t2)
@@ -216,13 +216,13 @@ object Infer {
     * @param env the environment.
     * @return the list of variables of T that can be generalized in the given environment.
     */
-  private def generalize(tp: Type, env: Env): List[TypeVar] = tp match {
+  private def generalize(tp: Type, env: Env): Set[TypeVar] = tp match {
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
     case tvar @ TypeVar(_) if !env.exists {
       case (_, TypeScheme(_, t)) if type_vars(t) contains tvar => true
       case _ => false
-    } => List(tvar)
-    case _ => List.empty
+    } => Set(tvar)
+    case _ => Set.empty
   }
 
   /** Instantiate the given type scheme, which consists of
