@@ -63,7 +63,7 @@ object Infer {
         //    Γ, x : T1 ⊢ t : T2 | C
         // ----------------------------
         // Γ ⊢ λx: T1. t : T1 -> T2 | C
-        case dtp => dtp.tpe  // type declared
+        case _ => tp.tpe  // type declared
       }
       val (typename2, constraints) = collect((v, TypeScheme(List.empty, vtp))::env, term)
       (FunType(vtp, typename2), constraints)
@@ -205,7 +205,7 @@ object Infer {
     */
   private def substitute_in_env(env: Env, sub: Type => Type): Env = {
     env.map {
-      case (x, TypeScheme(params, tp)) => (x, TypeScheme(update_params(params, sub(tp)), sub(tp)))
+      case (x, TypeScheme(params, tp)) => (x, TypeScheme(update_params(params, tp, sub(tp)), sub(tp)))
     }
   }
 
@@ -216,13 +216,10 @@ object Infer {
     * @param env the environment.
     * @return the list of variables of T that can be generalized in the given environment.
     */
-  private def generalize(tp: Type, env: Env): Set[TypeVar] = tp match {
-    case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
-    case tvar @ TypeVar(_) if !env.exists {
-      case (_, TypeScheme(_, t)) if type_vars(t) contains tvar => true
-      case _ => false
-    } => Set(tvar)
-    case _ => Set.empty
+  private def generalize(tp: Type, env: Env): Set[TypeVar] = {
+    type_vars(tp) diff
+        env.map { case (_, TypeScheme(_, t)) => type_vars(t) }
+           .foldLeft[Set[TypeVar]](Set.empty) { (t1, t2) => t1 union t2 }
   }
 
   /** Instantiate the given type scheme, which consists of
@@ -235,20 +232,20 @@ object Infer {
     apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar)} : _*))(ts.tp)
   }
 
-  /** Update the parameter types in what is supposed to be a type scheme parameter list,
-    * in order for them to match the type scheme principal type T.
-    *
-    * If the parameter list had no type parameters to begin with, then the result is the empty list.
-    * Otherwise, the result is a list containing the type variables of T.
+  /** Substitute the parameter types in what is supposed to be a type scheme parameter list,
+    * based on the substitutions that have been made to obtain new_type from old_type.
     *
     * @param params the parameter list where the substitution should be applied.
-    * @param tp the type scheme principal type T.
+    * @param old_tp the old type.
+    * @param new_tp the new type.
     * @return the new parameter type list.
     */
-  private def update_params(params: List[TypeVar], tp: Type): List[TypeVar] = params match {
-      case Nil => Nil
-      case _ => type_vars(tp).toList
-    }
+  private def update_params(params: List[TypeVar], old_tp: Type, new_tp: Type): List[TypeVar] = params match {
+    case Nil => Nil
+    case _ =>
+      val env_bound = type_vars(old_tp) -- params
+      (type_vars(new_tp) -- env_bound).toList
+  }
 
   /** Return a set of the type variables in a type T (referred to as FV(T) in TAPL).
     *
