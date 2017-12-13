@@ -93,12 +93,13 @@ object Infer {
         val sub = unify(t1_constraints)
         val principal_type = sub(t1_typename)
         // the substitution we found should also be applied to the current environment
-        val new_env = substitute_in_env(env, sub)
+        val new_env = env.map { case (xe, TypeScheme(params, tpe)) => (xe, TypeScheme(params, sub(tpe))) }
         // we generalize some type variables inside T and obtain a type scheme
         val type_scheme = TypeScheme(generalize(principal_type, new_env).toList, principal_type)
         // we extend the environment with a binding from "x" to its type scheme.
         // and typecheck "term" with the new environment.
-        collect((x, type_scheme)::new_env, t2)
+        val (t2_typename, t2_constraints) = collect((x, type_scheme)::new_env, t2)
+        (t2_typename, t1_constraints ++ t2_constraints)
       case _ => collect(env, App(Abs(x, tp, t2), t1))
     }
     case _ => throw TypeError("Could not collect type and constraints")
@@ -110,9 +111,15 @@ object Infer {
     * @return a "sigma" function, which accepts a Type and returns a new Type, without type variables.
     */
   def unify(c: List[Constraint]): Type => Type =
-    // apply_substitution is being curried, expects one type, returns its substitution
+    // apply_substitution is being curried: expects one type, returns its substitution
     apply_substitution(unify_map(c))
 
+  /** Make unification using Maps, for code clarity. Used by unify above.
+    * The resulting map can be passed as a lambda as is.
+    *
+    * @param c the list of constraints to solve.
+    * @return a Map containing the variable mappings of the unification.
+    */
   private def unify_map(c: List[Constraint]): Map[Type, Type] = c match {
     case Nil => Map.empty
     case constraint :: tail => constraint match {
@@ -197,18 +204,6 @@ object Infer {
     case o => o
   }
 
-  /** Substitute: every type variable in env according to sub.
-    *
-    * @param env the environment in which to substitute.
-    * @param sub the type variable mappings.
-    * @return the new environment.
-    */
-  private def substitute_in_env(env: Env, sub: Type => Type): Env = {
-    env.map {
-      case (x, TypeScheme(params, tp)) => (x, TypeScheme(update_params(params, tp, sub(tp)), sub(tp)))
-    }
-  }
-
   /** Return the variables in a given type T, that can be generalized,
     * which are the variables in T that are not mentioned in the given environment.
     *
@@ -229,22 +224,7 @@ object Infer {
     * @return an instantiation of ts, i.e. [X1 -> Y1, ..., Xn -> Yn] T.
     */
   private def instantiate_typescheme(ts: TypeScheme): Type = {
-    apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar)} : _*))(ts.tp)
-  }
-
-  /** Substitute the parameter types in what is supposed to be a type scheme parameter list,
-    * based on the substitutions that have been made to obtain new_type from old_type.
-    *
-    * @param params the parameter list where the substitution should be applied.
-    * @param old_tp the old type.
-    * @param new_tp the new type.
-    * @return the new parameter type list.
-    */
-  private def update_params(params: List[TypeVar], old_tp: Type, new_tp: Type): List[TypeVar] = params match {
-    case Nil => Nil
-    case _ =>
-      val env_bound = type_vars(old_tp) -- params
-      (type_vars(new_tp) -- env_bound).toList
+    apply_substitution(Map(ts.params map { t => (t, TypeVarGen.getTypeVar) } : _*))(ts.tp)
   }
 
   /** Return a set of the type variables in a type T (referred to as FV(T) in TAPL).
