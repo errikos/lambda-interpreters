@@ -1,9 +1,5 @@
 # Project 4: STLC Extensions
 
-**Hand in:** 21 Nov 2017, 23:59 (Europe/Zurich)
-
-**Project template:** [4-extensions.zip](projects/4-extensions.zip)
-
 The project skeleton is the same one you started with for the last assignment. You should continue working on
 your project, and the final submission should contain all extensions, both from this assignment
 and from the last assignment. In this assignment, you will extend your simply typed lambda

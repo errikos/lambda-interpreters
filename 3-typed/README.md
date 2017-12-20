@@ -1,9 +1,5 @@
 # Project 3: Simply Typed Lambda Calculus
 
-**Hand in:** 31 Oct 2017, 23:59 (Europe/Zurich)
-
-**Project template:** [3-typed.zip](projects/3-typed.zip)
-
 The goal of this exercise is to familiarize yourself with the simply typed λ-calculus; your work consists of implementing a type
 checker and a reducer for simply typed λ-terms. To make it more interesting, we extend λ-calculus with boolean and
 integer values, as well as let and pair constructs. This time we'll fix a call-by-value strategy, so there will be only one reducer you need to write (actually,

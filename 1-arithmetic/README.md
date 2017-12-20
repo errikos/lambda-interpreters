@@ -1,9 +1,5 @@
 # Project 1: The NB Language
 
-**Hand in:** 03 Oct 2017, 23:59 (Europe/Zurich)
-
-**Project template:** [1-arithmetic.zip](projects/1-arithmetic.zip)
-
 The cryptic acronym stands for Numbers and Booleans and comes from the course book.
 This simple language is defined in Chapter 3 of the the TAPL book.
 

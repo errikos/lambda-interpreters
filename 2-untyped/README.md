@@ -1,9 +1,5 @@
 # Project 2: Untyped Lambda Calculus
 
-**Hand in:** 17 Oct 2017, 23:59 (Europe/Zurich)
-
-**Project template:** [2-untyped.zip](projects/2-untyped.zip)
-
 In this exercise, you'll be studying untyped λ-calculus. This classic language is defined in Chapter 5 of the TAPL book.
 
     t ::= ident              terms
