@@ -1,2 +1,2 @@
-# FoS2017-Assignments
-Foundations of Software 2017 @ EPFL - Assignments
+# tapling-with-fos-2017
+Having some fun with TAPL and Scala.
